@@ -270,8 +270,10 @@
         const loginError = document.getElementById('loginError');
         const loginSuccess = document.getElementById('loginSuccess');
 
-        // Elemento DOM para a tela de usuários
+        // Elementos DOM para as telas de usuários e medicamentos
         const userNameInput = document.getElementById('userNameInput');
+        const addNameInput = document.getElementById('addNameInput');
+        const addPeriodInput = document.getElementById('addPeriodInput');
 
         // Função de log
         function log(message) {
@@ -720,7 +722,26 @@
                         </div>
                     `;
                     editList.appendChild(li);
-                    document.getElementById(`saveEdit-${key}`).addEventListener('click', () => saveEdit(key));
+
+                    const editNameInput = document.getElementById(`editName-${key}`);
+                    const editPeriodInput = document.getElementById(`editPeriod-${key}`);
+                    const saveButton = document.getElementById(`saveEdit-${key}`);
+
+                    saveButton.addEventListener('click', () => saveEdit(key));
+
+                    // Adicionar evento Enter para os campos de edição
+                    editNameInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            saveEdit(key);
+                        }
+                    });
+                    editPeriodInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            saveEdit(key);
+                        }
+                    });
                 });
             });
         }
@@ -732,10 +753,17 @@
                 document.getElementById('editError').textContent = "Preencha nome e periodicidade válida!";
                 return;
             }
-            update(ref(db, `users/${currentUserId}/medications/${key}`), { name, periodicity });
-            document.getElementById('editSuccess').textContent = "Item atualizado com sucesso!";
-            setTimeout(() => document.getElementById('editSuccess').textContent = '', 2000);
-            showScreen('mainScreen');
+            update(ref(db, `users/${currentUserId}/medications/${key}`), { name, periodicity })
+                .then(() => {
+                    document.getElementById('editError').textContent = '';
+                    document.getElementById('editSuccess').textContent = "Item atualizado com sucesso!";
+                    setTimeout(() => document.getElementById('editSuccess').textContent = '', 2000);
+                    showScreen('mainScreen');
+                })
+                .catch((error) => {
+                    document.getElementById('editError').textContent = "Erro ao atualizar: " + error.message;
+                    log(`Erro ao atualizar medicamento: ${error.message}`);
+                });
         }
 
         function renderDeleteScreen() {
@@ -1172,8 +1200,22 @@
             // Adicionar funcionalidade da tecla Enter no campo de nome de usuário
             userNameInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
-                    e.preventDefault(); // Impede o comportamento padrão do Enter
-                    addUser(); // Chama a função de salvar
+                    e.preventDefault();
+                    addUser();
+                }
+            });
+
+            // Adicionar funcionalidade da tecla Enter nos campos de cadastro de item
+            addNameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addMedication();
+                }
+            });
+            addPeriodInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addMedication();
                 }
             });
         });
