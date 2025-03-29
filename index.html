@@ -13,6 +13,13 @@
             text-align: center;
             margin: 0;
         }
+        #loginScreen, #appScreen {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        #loginScreen { display: block; }
+        #appScreen { display: none; }
         .header {
             display: flex;
             justify-content: space-between;
@@ -37,85 +44,37 @@
             width: 100%;
             text-align: left;
         }
-        .report-line1 {
+        .report-line1, .report-line2 {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin: 0;
             padding: 0;
         }
-        .report-line2 {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 0;
-            padding: 0;
-        }
-        .report-title {
-            margin: 0;
-            padding: 0;
-        }
-        .report-period-buttons {
-            display: flex;
-            margin: 0;
-            padding: 0;
-        }
-        .report-order-chrono {
-            margin: 0 10px 0 0;
-            padding: 15px;
-        }
-        .report-order-type {
-            margin: 0 10px 0 0;
-            padding: 15px;
-        }
+        .report-title { margin: 0; padding: 0; }
+        .report-period-buttons { display: flex; margin: 0; padding: 0; }
+        .report-order-chrono, .report-order-type { margin: 0 10px 0 0; padding: 15px; }
         button, input {
             font-size: 24px;
             padding: 15px;
-            margin: 0 10px 0 0;
+            margin: 10px 10px 0 0;
             background: #333;
             color: #e0e0e0;
             border: 1px solid #555;
         }
-        button:hover {
-            background: #555;
-        }
-        .screen {
-            display: none;
-        }
-        .screen.active {
-            display: block;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        #medList li {
+        button:hover { background: #555; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        ul { list-style-type: none; padding: 0; }
+        #medList li, #userList li, #editMedList li, #deleteMedList li, #reportList li {
             font-size: 28px;
             margin: 15px 0;
             background: #2a2a2a;
             padding: 20px;
             border-radius: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
         }
-        #userList li {
-            font-size: 28px;
-            margin: 15px 0;
-            background: #2a2a2a;
-            padding: 20px;
-            border-radius: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        #editMedList li, #deleteMedList li, #reportList li {
-            font-size: 28px;
-            margin: 15px 0;
-            background: #2a2a2a;
-            padding: 20px;
-            border-radius: 10px;
+        #medList li { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        #userList li, #editMedList li, #deleteMedList li, #reportList li {
             display: flex;
             flex-direction: column;
             align-items: flex-start;
@@ -127,43 +86,23 @@
             width: 100%;
             cursor: pointer;
         }
-        .edit-row input[type="text"] {
-            flex: 1;
-            margin-right: 10px;
-        }
-        .edit-row input[type="number"] {
-            width: 150px;
-            margin-right: 10px;
-        }
-        .delete-name {
-            cursor: pointer;
-            flex: 1;
-            text-align: left;
-        }
-        .next-time {
-            font-size: 36px;
-            font-weight: bold;
-        }
+        .edit-row input[type="text"] { flex: 1; margin-right: 10px; }
+        .edit-row input[type="number"] { width: 150px; margin-right: 10px; }
+        .delete-name { cursor: pointer; flex: 1; text-align: left; }
+        .next-time { font-size: 36px; font-weight: bold; }
         .same-day { color: #ffff00; }
         .future-day { color: #1e90ff; }
         .on-time { color: #00ff00; }
         .late { color: #ff5555; }
-        #mainError, #addError, #editError, #deleteError, #reportError, #userError,
-        #mainSuccess, #addSuccess, #editSuccess, #deleteSuccess, #reportSuccess, #userSuccess {
+        #loginError, #mainError, #addError, #editError, #deleteError, #reportError, #userError,
+        #loginSuccess, #mainSuccess, #addSuccess, #editSuccess, #deleteSuccess, #reportSuccess, #userSuccess {
             font-size: 24px;
             margin: 10px 0;
         }
         [id$="Error"] { color: #ff5555; }
         [id$="Success"] { color: #55ff55; }
-        .user-name {
-            cursor: pointer;
-        }
-        .has-note {
-            cursor: pointer;
-            font-style: italic;
-            color: #aaa;
-            margin-left: 10px;
-        }
+        .user-name, .has-note { cursor: pointer; }
+        .has-note { font-style: italic; color: #aaa; margin-left: 10px; }
         .user-note, .delete-note {
             display: none;
             font-size: 20px;
@@ -179,104 +118,119 @@
             resize: none;
             box-sizing: border-box;
         }
-        .status-text {
-            font-size: 24px;
-            margin-left: 10px;
-        }
+        .status-text { font-size: 24px; margin-left: 10px; }
     </style>
 </head>
 <body>
-    <div id="mainScreen" class="screen active">
-        <div class="header">
-            <h1>Gerenciador de Medicamentos</h1>
-            <span id="currentTime"></span>
-        </div>
-        <div class="nav-buttons">
-            <button id="goToUser">Usuário</button>
-            <button id="goToAdd">Cadastrar Item</button>
-            <button id="goToEdit">Alterar Item</button>
-            <button id="goToDelete">Excluir ou Mudar Status do Item</button>
-            <button id="goToReport">Relatórios</button>
-        </div>
-        <ul id="medList"></ul>
-        <div id="mainError"></div>
-        <div id="mainSuccess"></div>
+    <!-- Tela de Login -->
+    <div id="loginScreen">
+        <h1>Gerenciador de Medicamentos</h1>
+        <input type="email" id="emailInput" placeholder="E-mail">
+        <input type="password" id="passwordInput" placeholder="Senha">
+        <button id="loginButton">Entrar</button>
+        <button id="registerButton">Cadastrar</button>
+        <button id="resetPasswordButton">Recuperar Senha</button>
+        <div id="loginError"></div>
+        <div id="loginSuccess"></div>
     </div>
 
-    <div id="userScreen" class="screen">
-        <h1>Usuários</h1>
-        <input type="text" id="userNameInput" placeholder="Nome do usuário">
-        <button id="saveUser">Salvar</button>
-        <button id="backFromUser">Voltar</button>
-        <ul id="userList"></ul>
-        <div id="userError"></div>
-        <div id="userSuccess"></div>
-    </div>
-
-    <div id="addScreen" class="screen">
-        <h1>Cadastrar Item</h1>
-        <input type="text" id="addNameInput" placeholder="Nome do item">
-        <input type="number" id="addPeriodInput" placeholder="Periodicidade (horas)">
-        <button id="saveAdd">Salvar</button>
-        <button id="backFromAdd">Voltar</button>
-        <div id="addError"></div>
-        <div id="addSuccess"></div>
-    </div>
-
-    <div id="editScreen" class="screen">
-        <h1>Alterar Item</h1>
-        <ul id="editMedList"></ul>
-        <button id="backFromEdit">Voltar</button>
-        <div id="editError"></div>
-        <div id="editSuccess"></div>
-    </div>
-
-    <div id="deleteScreen" class="screen">
-        <h1>Excluir ou Mudar Status do Item</h1>
-        <ul id="deleteMedList"></ul>
-        <button id="backFromDelete">Voltar</button>
-        <div id="deleteError"></div>
-        <div id="deleteSuccess"></div>
-    </div>
-
-    <div id="reportScreen" class="screen">
-        <div class="report-container">
-            <div class="report-line1">
-                <h1 class="report-title">RELATÓRIOS</h1>
-                <button id="chronoOrder" class="report-order-chrono">Ordenamento Cronológico</button>
+    <!-- Tela Principal -->
+    <div id="appScreen">
+        <div id="mainScreen" class="screen active">
+            <div class="header">
+                <h1>Gerenciador de Medicamentos</h1>
+                <span id="currentTime"></span>
             </div>
-            <div class="report-line2">
-                <div class="report-period-buttons">
-                    <button id="dailyReport">Diário</button>
-                    <button id="weeklyReport">Semanal</button>
-                    <button id="monthlyReport">Mensal</button>
-                    <button id="yearlyReport">Anual</button>
+            <div class="nav-buttons">
+                <button id="goToUser">Usuário</button>
+                <button id="goToAdd">Cadastrar Item</button>
+                <button id="goToEdit">Alterar Item</button>
+                <button id="goToDelete">Excluir ou Mudar Status do Item</button>
+                <button id="goToReport">Relatórios</button>
+                <button id="logoutButton">Sair</button>
+            </div>
+            <ul id="medList"></ul>
+            <div id="mainError"></div>
+            <div id="mainSuccess"></div>
+        </div>
+
+        <div id="userScreen" class="screen">
+            <h1>Usuários</h1>
+            <input type="text" id="userNameInput" placeholder="Nome do usuário">
+            <button id="saveUser">Salvar</button>
+            <button id="backFromUser">Voltar</button>
+            <ul id="userList"></ul>
+            <div id="userError"></div>
+            <div id="userSuccess"></div>
+        </div>
+
+        <div id="addScreen" class="screen">
+            <h1>Cadastrar Item</h1>
+            <input type="text" id="addNameInput" placeholder="Nome do item">
+            <input type="number" id="addPeriodInput" placeholder="Periodicidade (horas)">
+            <button id="saveAdd">Salvar</button>
+            <button id="backFromAdd">Voltar</button>
+            <div id="addError"></div>
+            <div id="addSuccess"></div>
+        </div>
+
+        <div id="editScreen" class="screen">
+            <h1>Alterar Item</h1>
+            <ul id="editMedList"></ul>
+            <button id="backFromEdit">Voltar</button>
+            <div id="editError"></div>
+            <div id="editSuccess"></div>
+        </div>
+
+        <div id="deleteScreen" class="screen">
+            <h1>Excluir ou Mudar Status do Item</h1>
+            <ul id="deleteMedList"></ul>
+            <button id="backFromDelete">Voltar</button>
+            <div id="deleteError"></div>
+            <div id="deleteSuccess"></div>
+        </div>
+
+        <div id="reportScreen" class="screen">
+            <div class="report-container">
+                <div class="report-line1">
+                    <h1 class="report-title">RELATÓRIOS</h1>
+                    <button id="chronoOrder" class="report-order-chrono">Ordenamento Cronológico</button>
                 </div>
-                <button id="typeOrder" class="report-order-type">Ordenamento por Tipo de Item</button>
+                <div class="report-line2">
+                    <div class="report-period-buttons">
+                        <button id="dailyReport">Diário</button>
+                        <button id="weeklyReport">Semanal</button>
+                        <button id="monthlyReport">Mensal</button>
+                        <button id="yearlyReport">Anual</button>
+                    </div>
+                    <button id="typeOrder" class="report-order-type">Ordenamento por Tipo de Item</button>
+                </div>
             </div>
+            <ul id="reportList"></ul>
+            <button id="backFromReport">Voltar</button>
+            <div id="reportError"></div>
+            <div id="reportSuccess"></div>
         </div>
-        <ul id="reportList"></ul>
-        <button id="backFromReport">Voltar</button>
-        <div id="reportError"></div>
-        <div id="reportSuccess"></div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, push, update, remove, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDan0hha-AIKJ2onO-u79Yf480uyR9DroQ",
-  authDomain: "medicamentos-enf-patricia.firebaseapp.com",
-  projectId: "medicamentos-enf-patricia",
-  storageBucket: "medicamentos-enf-patricia.firebasestorage.app",
-  messagingSenderId: "893304740405",
-  appId: "1:893304740405:web:9ef46f7b6ad808504c2f7c",
-  measurementId: "G-FMTFKEBNN7"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyDan0hha-AIKJ2onO-u79Yf480uyR9DroQ",
+            authDomain: "medicamentos-enf-patricia.firebaseapp.com",
+            projectId: "medicamentos-enf-patricia",
+            storageBucket: "medicamentos-enf-patricia.firebasestorage.app",
+            messagingSenderId: "893304740405",
+            appId: "1:893304740405:web:9ef46f7b6ad808504c2f7c",
+            measurementId: "G-FMTFKEBNN7"
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+        const auth = getAuth(app);
         const usersRef = ref(db, 'users');
         const lastUserRef = ref(db, 'lastUser');
         let currentUserId = null;
@@ -285,6 +239,117 @@ const firebaseConfig = {
         function getMedsRef() {
             return currentUserId ? ref(db, `users/${currentUserId}/medications`) : ref(db, 'medications');
         }
+
+        // Elementos DOM para autenticação
+        const loginScreen = document.getElementById('loginScreen');
+        const appScreen = document.getElementById('appScreen');
+        const emailInput = document.getElementById('emailInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginButton = document.getElementById('loginButton');
+        const registerButton = document.getElementById('registerButton');
+        const resetPasswordButton = document.getElementById('resetPasswordButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const loginError = document.getElementById('loginError');
+        const loginSuccess = document.getElementById('loginSuccess');
+
+        // Função de log
+        function log(message) {
+            console.log(`[LOG ${new Date().toLocaleTimeString()}]: ${message}`);
+        }
+
+        // Verificar estado de autenticação
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                log(`Usuário autenticado: ${user.email}`);
+                loginScreen.style.display = 'none';
+                appScreen.style.display = 'block';
+                renderMainScreen();
+            } else {
+                log("Nenhum usuário autenticado.");
+                loginScreen.style.display = 'block';
+                appScreen.style.display = 'none';
+            }
+        });
+
+        // Login
+        loginButton.addEventListener('click', () => {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+            if (!email || !password) {
+                loginError.textContent = "Preencha e-mail e senha!";
+                return;
+            }
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    log(`Login bem-sucedido: ${userCredential.user.email}`);
+                    loginError.textContent = '';
+                    loginSuccess.textContent = "Login realizado com sucesso!";
+                    setTimeout(() => loginSuccess.textContent = '', 2000);
+                })
+                .catch((error) => {
+                    loginError.textContent = `Erro ao fazer login: ${error.message}`;
+                    log(`Erro ao fazer login: ${error.message}`);
+                });
+        });
+
+        // Registro de novo usuário
+        registerButton.addEventListener('click', () => {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+            if (!email || !password) {
+                loginError.textContent = "Preencha e-mail e senha para cadastrar!";
+                return;
+            }
+            if (password.length < 6) {
+                loginError.textContent = "A senha deve ter pelo menos 6 caracteres!";
+                return;
+            }
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    log(`Usuário cadastrado: ${userCredential.user.email}`);
+                    loginError.textContent = '';
+                    loginSuccess.textContent = "Cadastro realizado com sucesso! Você está logado.";
+                    setTimeout(() => loginSuccess.textContent = '', 2000);
+                })
+                .catch((error) => {
+                    loginError.textContent = `Erro ao cadastrar: ${error.message}`;
+                    log(`Erro ao cadastrar: ${error.message}`);
+                });
+        });
+
+        // Recuperação de senha
+        resetPasswordButton.addEventListener('click', () => {
+            const email = emailInput.value.trim();
+            if (!email) {
+                loginError.textContent = "Digite seu e-mail para recuperar a senha!";
+                return;
+            }
+            sendPasswordResetEmail(auth, email)
+                .then(() => {
+                    loginError.textContent = '';
+                    loginSuccess.textContent = "E-mail de recuperação enviado! Verifique sua caixa de entrada.";
+                    setTimeout(() => loginSuccess.textContent = '', 5000);
+                })
+                .catch((error) => {
+                    loginError.textContent = `Erro ao enviar e-mail de recuperação: ${error.message}`;
+                    log(`Erro ao enviar e-mail de recuperação: ${error.message}`);
+                });
+        });
+
+        // Logout
+        logoutButton.addEventListener('click', () => {
+            signOut(auth)
+                .then(() => {
+                    log("Logout realizado com sucesso.");
+                    loginError.textContent = '';
+                    loginSuccess.textContent = "Logout realizado com sucesso!";
+                    setTimeout(() => loginSuccess.textContent = '', 2000);
+                })
+                .catch((error) => {
+                    loginError.textContent = `Erro ao fazer logout: ${error.message}`;
+                    log(`Erro ao fazer logout: ${error.message}`);
+                });
+        });
 
         function updateCurrentTime() {
             const now = new Date();
@@ -913,17 +978,17 @@ const firebaseConfig = {
                 const reportList = document.getElementById('reportList');
                 reportList.innerHTML = '';
                 const now = new Date();
-                const today = new Date(now); // Usar horário local diretamente
-                today.setHours(0, 0, 0, 0);  // Zerar horas para comparar apenas o dia
+                const today = new Date(now);
+                today.setHours(0, 0, 0, 0);
 
                 let allEntries = [];
                 Object.entries(meds).forEach(([key, med]) => {
                     if (med.history && med.history.length > 0) {
                         med.history.forEach((entry, index) => {
-                            const takenDate = new Date(entry.taken); // Horário UTC do banco
-                            const takenLocal = new Date(takenDate.getTime() - 3 * 60 * 60 * 1000); // Ajuste para horário local (-3h)
+                            const takenDate = new Date(entry.taken);
+                            const takenLocal = new Date(takenDate.getTime() - 3 * 60 * 60 * 1000);
                             const takenLocalDate = new Date(takenLocal);
-                            takenLocalDate.setHours(0, 0, 0, 0); // Zerar horas para comparar apenas o dia
+                            takenLocalDate.setHours(0, 0, 0, 0);
                             if (takenLocalDate.getTime() === today.getTime()) {
                                 allEntries.push({ key, med, taken: entry.taken, notes: entry.notes || "", index });
                             }
