@@ -13,10 +13,13 @@
             text-align: center;
             margin: 0;
         }
-        #loginScreen, #appScreen {
+        #loginScreen {
             width: 100%;
             max-width: 600px;
             margin: 0 auto;
+        }
+        #appScreen {
+            width: 100%;
         }
         #loginScreen { display: block; }
         #appScreen { display: none; }
@@ -544,7 +547,12 @@
                 const userList = document.getElementById('userList');
                 userList.innerHTML = '';
 
-                Object.entries(users).forEach(([key, user]) => {
+                // Converter para array e ordenar alfabeticamente
+                const userArray = Object.entries(users).sort((a, b) => 
+                    a[1].name.localeCompare(b[1].name)
+                );
+
+                userArray.forEach(([key, user]) => {
                     const li = document.createElement('li');
                     li.innerHTML = `
                         <div class="user-row">
