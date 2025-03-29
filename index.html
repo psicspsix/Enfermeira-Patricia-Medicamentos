@@ -245,6 +245,15 @@
         let currentUserId = null;
         let currentReportType = 'daily';
 
+        // Testar conexão com o Realtime Database
+        log("Testando conexão com o Realtime Database...");
+        onValue(ref(db, '/'), (snapshot) => {
+            log("Conexão com o Realtime Database bem-sucedida. Dados raiz: " + JSON.stringify(snapshot.val()));
+        }, (error) => {
+            log("Erro ao conectar ao Realtime Database: " + error.message);
+            document.getElementById('loginError').textContent = "Erro ao conectar ao banco de dados: " + error.message;
+        });
+
         function getMedsRef() {
             return currentUserId ? ref(db, `users/${currentUserId}/medications`) : ref(db, 'medications');
         }
@@ -542,13 +551,17 @@
             }
 
             log("Usuário autenticado: " + auth.currentUser.email + ". Tentando adicionar usuário: " + name);
+
+            log("Executando push para /users...");
             push(usersRef, {
                 name: name,
                 note: ""
             }).then((newUserRef) => {
                 const userId = newUserRef.key;
                 log(`Novo usuário criado com ID: ${userId}`);
-                set(lastUserRef, { id: userId }).then(() => {
+
+                log("Executando set para /lastUser...");
+                return set(lastUserRef, { id: userId }).then(() => {
                     log("lastUser atualizado com sucesso para ID: " + userId);
                     currentUserId = userId;
                     nameInput.value = '';
@@ -556,15 +569,13 @@
                     document.getElementById('userSuccess').textContent = "Usuário cadastrado com sucesso!";
                     setTimeout(() => document.getElementById('userSuccess').textContent = '', 2000);
                     showScreen('mainScreen');
-                }).catch((error) => {
-                    log("Erro ao definir lastUser: " + error.message);
-                    document.getElementById('userError').textContent = "Erro ao definir último usuário: " + error.message;
                 });
             }).catch((error) => {
-                log("Erro ao cadastrar usuário: " + error.message);
+                log("Erro durante a operação no Firebase: " + error.message);
                 document.getElementById('userError').textContent = "Erro ao cadastrar usuário: " + error.message;
+            }).finally(() => {
+                log("Fim da execução de addUser.");
             });
-            log("Fim da execução de addUser.");
         }
 
         function renderUserScreen() {
