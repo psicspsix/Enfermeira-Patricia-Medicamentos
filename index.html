@@ -265,16 +265,15 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, push, update, remove, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyA8pHaMGwaR3-_36A1mYJ0UzAwOdBk-9zw",
-            authDomain: "gerenciador-medicamentos.firebaseapp.com",
-            databaseURL: "https://gerenciador-medicamentos-default-rtdb.firebaseio.com",
-            projectId: "gerenciador-medicamentos",
-            storageBucket: "gerenciador-medicamentos.firebasestorage.app",
-            messagingSenderId: "182430581876",
-            appId: "1:182430581876:web:e5e6462c7c70dd4326bd21",
-            measurementId: "G-FXWHXJFSN4"
-        };
+const firebaseConfig = {
+  apiKey: "AIzaSyDan0hha-AIKJ2onO-u79Yf480uyR9DroQ",
+  authDomain: "medicamentos-enf-patricia.firebaseapp.com",
+  projectId: "medicamentos-enf-patricia",
+  storageBucket: "medicamentos-enf-patricia.firebasestorage.app",
+  messagingSenderId: "893304740405",
+  appId: "1:893304740405:web:9ef46f7b6ad808504c2f7c",
+  measurementId: "G-FMTFKEBNN7"
+};
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
