@@ -236,6 +236,7 @@
             measurementId: "G-FMTFKEBNN7",
             databaseURL: "https://medicamentos-enf-patricia-default-rtdb.firebaseio.com"
         };
+
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const auth = getAuth(app);
@@ -538,6 +539,7 @@
                 return;
             }
 
+            log("Tentando adicionar usuário: " + name);
             push(usersRef, {
                 name: name,
                 note: ""
@@ -545,20 +547,20 @@
                 const userId = newUserRef.key;
                 log(`Novo usuário criado com ID: ${userId}`);
                 set(lastUserRef, { id: userId }).then(() => {
-                    currentUserId = userId; // Atualiza o currentUserId imediatamente
+                    log("lastUser atualizado com sucesso.");
+                    currentUserId = userId;
                     nameInput.value = '';
                     document.getElementById('userError').textContent = '';
                     document.getElementById('userSuccess').textContent = "Usuário cadastrado com sucesso!";
-                    log(`Usuário ${name} cadastrado e definido como último usuário.`);
                     setTimeout(() => document.getElementById('userSuccess').textContent = '', 2000);
                     showScreen('mainScreen');
                 }).catch((error) => {
+                    log("Erro ao definir lastUser: " + error.message);
                     document.getElementById('userError').textContent = "Erro ao definir último usuário: " + error.message;
-                    log(`Erro ao definir lastUser: ${error.message}`);
                 });
             }).catch((error) => {
+                log("Erro ao cadastrar usuário: " + error.message);
                 document.getElementById('userError').textContent = "Erro ao cadastrar usuário: " + error.message;
-                log(`Erro ao cadastrar usuário: ${error.message}`);
             });
         }
 
