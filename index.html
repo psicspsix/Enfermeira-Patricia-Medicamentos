@@ -270,6 +270,9 @@
         const loginError = document.getElementById('loginError');
         const loginSuccess = document.getElementById('loginSuccess');
 
+        // Elemento DOM para a tela de usuários
+        const userNameInput = document.getElementById('userNameInput');
+
         // Função de log
         function log(message) {
             console.log(`[LOG ${new Date().toLocaleTimeString()}]: ${message}`);
@@ -1164,6 +1167,14 @@
             document.getElementById('typeOrder').addEventListener('click', () => {
                 if (currentReportType === 'daily') renderDailyReport('type');
                 else renderReportScreen(currentReportType, 'type');
+            });
+
+            // Adicionar funcionalidade da tecla Enter no campo de nome de usuário
+            userNameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Impede o comportamento padrão do Enter
+                    addUser(); // Chama a função de salvar
+                }
             });
         });
     </script>
