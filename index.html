@@ -262,6 +262,7 @@
         let currentReportType = 'daily';
         let currentAuthUser = null;
         let currentAuthUserName = null;
+        let isLoggingIn = false; // Controle para evitar interferência do onAuthStateChanged
 
         function getMedsRef() {
             return currentUserId ? ref(db, `users/${currentUserId}/medications`) : ref(db, 'medications');
@@ -322,14 +323,14 @@
 
         // Verificar estado de autenticação
         onAuthStateChanged(auth, async (user) => {
-            if (user) {
+            if (user && !isLoggingIn) { // Só mudar tela se não estiver no processo de login
                 log(`Usuário autenticado: ${user.email}`);
                 currentAuthUser = user;
                 currentAuthUserName = await getAuthUserName(user.email);
                 loginScreen.style.display = 'none';
                 appScreen.style.display = 'block';
                 renderMainScreen();
-            } else {
+            } else if (!user) {
                 log("Nenhum usuário autenticado.");
                 currentAuthUser = null;
                 currentAuthUserName = null;
@@ -348,6 +349,7 @@
                 loginError.textContent = "Preencha e-mail e senha!";
                 return;
             }
+            isLoggingIn = true; // Iniciar processo de login
             signInWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
                     log(`Login bem-sucedido: ${userCredential.user.email}`);
@@ -359,11 +361,13 @@
                         loginScreen.style.display = 'none';
                         appScreen.style.display = 'block';
                         renderMainScreen();
+                        isLoggingIn = false; // Finalizar processo de login
                     }, 3000); // 3 segundos antes de entrar no app
                 })
                 .catch((error) => {
                     loginError.textContent = `Erro ao fazer login: ${error.message}`;
                     log(`Erro ao fazer login: ${error.message}`);
+                    isLoggingIn = false; // Resetar em caso de erro
                 });
         });
 
@@ -376,6 +380,7 @@
             registerPasswordInput.value = '';
             registerError.textContent = '';
             registerSuccess.textContent = '';
+            isLoggingIn = false; // Resetar ao entrar na tela de cadastro
         });
 
         // Salvar novo usuário autenticado
