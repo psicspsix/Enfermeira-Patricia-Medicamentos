@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Medicamentos</title>
     <style>
-        /* [Estilos mantidos iguais ao anterior] */
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
@@ -302,10 +301,9 @@
             if (user) {
                 log(`Usuário autenticado: ${user.email}`);
                 currentAuthUser = user;
-                loginScreen.style.display = 'none';
-                appScreen.style.display = 'block';
-                registerButton.style.display = 'inline-block'; // Mostra o botão "Cadastrar" após login
+                registerButton.style.display = 'inline-block'; // Mostra o botão "Cadastrar" imediatamente
                 renderMainScreen();
+                // Não muda a tela imediatamente, deixa o loginButton controlar isso
             } else {
                 log("Nenhum usuário autenticado.");
                 currentAuthUser = null;
@@ -329,7 +327,13 @@
                     log(`Login bem-sucedido: ${userCredential.user.email}`);
                     loginError.textContent = '';
                     loginSuccess.textContent = "Login realizado com sucesso!";
-                    setTimeout(() => loginSuccess.textContent = '', 2000);
+                    registerButton.style.display = 'inline-block'; // Garante que o botão "Cadastrar" apareça
+                    // Atraso de 2 segundos antes de mudar para a tela principal
+                    setTimeout(() => {
+                        loginSuccess.textContent = '';
+                        loginScreen.style.display = 'none';
+                        appScreen.style.display = 'block';
+                    }, 2000);
                 })
                 .catch((error) => {
                     loginError.textContent = `Erro ao fazer login: ${error.message}`;
@@ -454,7 +458,9 @@
         }
 
         function formatDateTime(dateTime) {
-            if (!dateTime) return '<span>Aguardando!</span>';
+            if
+
+ (!dateTime) return '<span>Aguardando!</span>';
             const date = new Date(dateTime);
             const dateLocal = new Date(date.getTime() - 3 * 60 * 60 * 1000);
             const day = String(dateLocal.getDate()).padStart(2, '0');
