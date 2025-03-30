@@ -13,7 +13,7 @@
             text-align: center;
             margin: 0;
         }
-        #loginScreen {
+        #loginScreen, #registerScreen {
             width: 100%;
             max-width: 600px;
             margin: 0 auto;
@@ -25,7 +25,7 @@
             padding: 0;
         }
         #loginScreen { display: block; }
-        #appScreen { display: none; }
+        #registerScreen, #appScreen { display: none; }
         .header {
             display: flex;
             justify-content: space-between;
@@ -61,7 +61,10 @@
         }
         .report-title { margin: 0; padding: 0; }
         .report-period-buttons { display: flex; margin: 0; padding: 0; }
-        .report-order-chrono, .report-order-type { margin: 0 10px 0 0; padding: 15px; }
+        .report-order-chrono, .report-order-type, .report-user-registry {
+            margin: 0 10px 0 0;
+            padding: 15px;
+        }
         button, input {
             font-size: 24px;
             padding: 15px;
@@ -102,8 +105,8 @@
         .future-day { color: #1e90ff; }
         .on-time { color: #00ff00; }
         .late { color: #ff5555; }
-        #loginError, #mainError, #addError, #editError, #deleteError, #reportError, #userError,
-        #loginSuccess, #mainSuccess, #addSuccess, #editSuccess, #deleteSuccess, #reportSuccess, #userSuccess {
+        #loginError, #registerError, #mainError, #addError, #editError, #deleteError, #reportError, #userError,
+        #loginSuccess, #registerSuccess, #mainSuccess, #addSuccess, #editSuccess, #deleteSuccess, #reportSuccess, #userSuccess {
             font-size: 24px;
             margin: 10px 0;
         }
@@ -136,10 +139,22 @@
         <input type="email" id="emailInput" placeholder="E-mail">
         <input type="password" id="passwordInput" placeholder="Senha">
         <button id="loginButton">Entrar</button>
-        <button id="registerButton">Cadastrar</button>
+        <button id="registerButton" style="display: none;">Cadastrar</button>
         <button id="resetPasswordButton">Recuperar Senha</button>
         <div id="loginError"></div>
         <div id="loginSuccess"></div>
+    </div>
+
+    <!-- Tela de Cadastro de Usuário Autenticado -->
+    <div id="registerScreen">
+        <h1>Cadastrar Novo Usuário</h1>
+        <input type="text" id="registerNameInput" placeholder="Nome do Usuário">
+        <input type="email" id="registerEmailInput" placeholder="E-mail">
+        <input type="password" id="registerPasswordInput" placeholder="Senha">
+        <button id="saveRegisterButton">Salvar</button>
+        <button id="backFromRegisterButton">Voltar</button>
+        <div id="registerError"></div>
+        <div id="registerSuccess"></div>
     </div>
 
     <!-- Tela Principal -->
@@ -211,6 +226,7 @@
                         <button id="monthlyReport">Mensal</button>
                         <button id="yearlyReport">Anual</button>
                     </div>
+                    <button id="userRegistryReport" class="report-user-registry">Registro de Usuários</button>
                     <button id="typeOrder" class="report-order-type">Ordenamento por Tipo de Item</button>
                 </div>
             </div>
@@ -227,14 +243,14 @@
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyDan0hha-AIKJ2onO-u79Yf480uyR9DroQ",
-            authDomain: "medicamentos-enf-patricia.firebaseapp.com",
-            projectId: "medicamentos-enf-patricia",
-            storageBucket: "medicamentos-enf-patricia.firebasestorage.app",
-            messagingSenderId: "893304740405",
-            appId: "1:893304740405:web:9ef46f7b6ad808504c2f7c",
-            measurementId: "G-FMTFKEBNN7",
-            databaseURL: "https://medicamentos-enf-patricia-default-rtdb.firebaseio.com"
+            apiKey: "Sua-API-Key",
+            authDomain: "Seu-Auth-Domain",
+            projectId: "Seu-Project-ID",
+            storageBucket: "Seu-Storage-Bucket",
+            messagingSenderId: "Seu-Messaging-Sender-ID",
+            appId: "Seu-App-ID",
+            measurementId: "Seu-Measurement-ID",
+            databaseURL: "Sua-Database-URL"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -244,22 +260,15 @@
         const lastUserRef = ref(db, 'lastUser');
         let currentUserId = null;
         let currentReportType = 'daily';
-
-        // Testar conexão com o Realtime Database
-        log("Testando conexão com o Realtime Database...");
-        onValue(ref(db, '/'), (snapshot) => {
-            log("Conexão com o Realtime Database bem-sucedida. Dados raiz: " + JSON.stringify(snapshot.val()));
-        }, (error) => {
-            log("Erro ao conectar ao Realtime Database: " + error.message);
-            document.getElementById('loginError').textContent = "Erro ao conectar ao banco de dados: " + error.message;
-        });
+        let currentAuthUser = null;
 
         function getMedsRef() {
             return currentUserId ? ref(db, `users/${currentUserId}/medications`) : ref(db, 'medications');
         }
 
-        // Elementos DOM para autenticação
+        // Elementos DOM para autenticação e cadastro
         const loginScreen = document.getElementById('loginScreen');
+        const registerScreen = document.getElementById('registerScreen');
         const appScreen = document.getElementById('appScreen');
         const emailInput = document.getElementById('emailInput');
         const passwordInput = document.getElementById('passwordInput');
@@ -269,6 +278,13 @@
         const logoutButton = document.getElementById('logoutButton');
         const loginError = document.getElementById('loginError');
         const loginSuccess = document.getElementById('loginSuccess');
+        const registerNameInput = document.getElementById('registerNameInput');
+        const registerEmailInput = document.getElementById('registerEmailInput');
+        const registerPasswordInput = document.getElementById('registerPasswordInput');
+        const saveRegisterButton = document.getElementById('saveRegisterButton');
+        const backFromRegisterButton = document.getElementById('backFromRegisterButton');
+        const registerError = document.getElementById('registerError');
+        const registerSuccess = document.getElementById('registerSuccess');
 
         // Elementos DOM para as telas de usuários e medicamentos
         const userNameInput = document.getElementById('userNameInput');
@@ -284,13 +300,18 @@
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 log(`Usuário autenticado: ${user.email}`);
+                currentAuthUser = user;
                 loginScreen.style.display = 'none';
                 appScreen.style.display = 'block';
+                registerButton.style.display = 'inline-block'; // Mostra o botão "Cadastrar" após login
                 renderMainScreen();
             } else {
                 log("Nenhum usuário autenticado.");
+                currentAuthUser = null;
                 loginScreen.style.display = 'block';
                 appScreen.style.display = 'none';
+                registerScreen.style.display = 'none';
+                registerButton.style.display = 'none'; // Esconde o botão "Cadastrar" sem login
             }
         });
 
@@ -315,29 +336,64 @@
                 });
         });
 
-        // Registro de novo usuário
+        // Mostrar tela de cadastro
         registerButton.addEventListener('click', () => {
-            const email = emailInput.value.trim();
-            const password = passwordInput.value.trim();
-            if (!email || !password) {
-                loginError.textContent = "Preencha e-mail e senha para cadastrar!";
+            loginScreen.style.display = 'none';
+            registerScreen.style.display = 'block';
+            registerNameInput.value = '';
+            registerEmailInput.value = '';
+            registerPasswordInput.value = '';
+            registerError.textContent = '';
+            registerSuccess.textContent = '';
+        });
+
+        // Salvar novo usuário autenticado
+        saveRegisterButton.addEventListener('click', () => {
+            const name = registerNameInput.value.trim();
+            const email = registerEmailInput.value.trim();
+            const password = registerPasswordInput.value.trim();
+
+            if (!name || !email || !password) {
+                registerError.textContent = "Preencha todos os campos!";
                 return;
             }
             if (password.length < 6) {
-                loginError.textContent = "A senha deve ter pelo menos 6 caracteres!";
+                registerError.textContent = "A senha deve ter pelo menos 6 caracteres!";
                 return;
             }
+
             createUserWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
-                    log(`Usuário cadastrado: ${userCredential.user.email}`);
-                    loginError.textContent = '';
-                    loginSuccess.textContent = "Cadastro realizado com sucesso! Você está logado.";
-                    setTimeout(() => loginSuccess.textContent = '', 2000);
+                    const newAuthUserId = userCredential.user.uid;
+                    push(usersRef, {
+                        name: name,
+                        email: email,
+                        note: "",
+                        registeredBy: currentAuthUser.email,
+                        registeredById: currentAuthUser.uid
+                    }).then((newUserRef) => {
+                        const userId = newUserRef.key;
+                        set(lastUserRef, { id: userId }).then(() => {
+                            log(`Novo usuário ${name} cadastrado por ${currentAuthUser.email}`);
+                            registerError.textContent = '';
+                            registerSuccess.textContent = "Usuário cadastrado com sucesso!";
+                            setTimeout(() => {
+                                registerSuccess.textContent = '';
+                                registerScreen.style.display = 'none';
+                                appScreen.style.display = 'block';
+                            }, 2000);
+                        });
+                    });
                 })
                 .catch((error) => {
-                    loginError.textContent = `Erro ao cadastrar: ${error.message}`;
-                    log(`Erro ao cadastrar: ${error.message}`);
+                    registerError.textContent = `Erro ao cadastrar: ${error.message}`;
+                    log(`Erro ao cadastrar usuário: ${error.message}`);
                 });
+        });
+
+        backFromRegisterButton.addEventListener('click', () => {
+            registerScreen.style.display = 'none';
+            appScreen.style.display = 'block';
         });
 
         // Recuperação de senha
@@ -499,7 +555,7 @@
                                 const newLastTaken = utcDate.toISOString();
                                 update(ref(db, `users/${currentUserId}/medications/${key}`), { 
                                     lastTaken: newLastTaken,
-                                    history: med.history ? [...med.history, { taken: newLastTaken, notes: "" }] : [{ taken: newLastTaken, notes: "" }]
+                                    history: med.history ? [...med.history, { taken: newLastTaken, notes: "", loggedBy: currentAuthUser.email }] : [{ taken: newLastTaken, notes: "", loggedBy: currentAuthUser.email }]
                                 }).then(() => {
                                     e.target.value = '';
                                 }).catch((error) => {
@@ -525,7 +581,7 @@
                         const newLastTaken = utcDate.toISOString();
                         update(ref(db, `users/${currentUserId}/medications/${key}`), { 
                             lastTaken: newLastTaken,
-                            history: med.history ? [...med.history, { taken: newLastTaken, notes: "" }] : [{ taken: newLastTaken, notes: "" }]
+                            history: med.history ? [...med.history, { taken: newLastTaken, notes: "", loggedBy: currentAuthUser.email }] : [{ taken: newLastTaken, notes: "", loggedBy: currentAuthUser.email }]
                         }).then(() => {
                             document.getElementById(`taken-${key}`).value = '';
                         }).catch((error) => {
@@ -560,7 +616,9 @@
             log("Executando push para /users...");
             push(usersRef, {
                 name: name,
-                note: ""
+                note: "",
+                registeredBy: currentAuthUser.email,
+                registeredById: currentAuthUser.uid
             }).then((newUserRef) => {
                 const userId = newUserRef.key;
                 log(`Novo usuário criado com ID: ${userId}`);
@@ -729,7 +787,6 @@
 
                     saveButton.addEventListener('click', () => saveEdit(key));
 
-                    // Adicionar evento Enter para os campos de edição
                     editNameInput.addEventListener('keydown', (e) => {
                         if (e.key === 'Enter') {
                             e.preventDefault();
@@ -876,7 +933,8 @@
                             const historyIndex = updatedHistory.findIndex(item => item.taken === currentTaken);
                             if (historyIndex !== -1) {
                                 const currentNotes = updatedHistory[historyIndex].notes || "";
-                                updatedHistory[historyIndex] = { taken: newTaken, notes: currentNotes };
+                                const currentLoggedBy = updatedHistory[historyIndex].loggedBy || currentAuthUser.email;
+                                updatedHistory[historyIndex] = { taken: newTaken, notes: currentNotes, loggedBy: currentLoggedBy };
                                 const isLastEntry = historyIndex === updatedHistory.length - 1;
                                 const updates = { history: updatedHistory };
                                 if (isLastEntry) {
@@ -963,7 +1021,7 @@
                                 shouldInclude = takenLocal >= yearAgo;
                             }
                             if (shouldInclude) {
-                                allEntries.push({ key, med, taken: entry.taken, notes: entry.notes || "", index });
+                                allEntries.push({ key, med, taken: entry.taken, notes: entry.notes || "", loggedBy: entry.loggedBy || "Desconhecido", index });
                             }
                         });
                     }
@@ -979,7 +1037,7 @@
                     });
                 }
 
-                allEntries.forEach(({ key, med, taken, notes, index }) => {
+                allEntries.forEach(({ key, med, taken, notes, loggedBy, index }) => {
                     const li = document.createElement('li');
                     const takenLocal = new Date(new Date(taken).getTime() - 3 * 60 * 60 * 1000);
                     const periodMs = med.periodicity * 60 * 60 * 1000;
@@ -998,6 +1056,7 @@
                         <div class="report-row">
                             ${med.name} | Tomado: <span class="${onTime ? 'on-time' : 'late'}">${takenLocal.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                             | Esperado: ${index === 0 ? 'N/A' : expectedLocal.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            | Registrado por: ${loggedBy}
                             <div>
                                 <button id="editHist-${key}-${index}">Editar</button>
                                 <button id="delHist-${key}-${index}">Excluir</button>
@@ -1023,14 +1082,14 @@
 
                     noteTextarea.addEventListener('blur', () => {
                         const updatedHistory = [...med.history];
-                        updatedHistory[index] = { taken: taken, notes: noteTextarea.value };
+                        updatedHistory[index] = { taken: taken, notes: noteTextarea.value, loggedBy: loggedBy };
                         update(ref(db, `users/${currentUserId}/medications/${key}`), { history: updatedHistory });
                     });
                     noteTextarea.addEventListener('keydown', (e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
                             const updatedHistory = [...med.history];
-                            updatedHistory[index] = { taken: taken, notes: noteTextarea.value };
+                            updatedHistory[index] = { taken: taken, notes: noteTextarea.value, loggedBy: loggedBy };
                             update(ref(db, `users/${currentUserId}/medications/${key}`), { history: updatedHistory });
                             noteTextarea.blur();
                         }
@@ -1071,7 +1130,7 @@
                             const takenLocalDate = new Date(takenLocal);
                             takenLocalDate.setHours(0, 0, 0, 0);
                             if (takenLocalDate.getTime() === today.getTime()) {
-                                allEntries.push({ key, med, taken: entry.taken, notes: entry.notes || "", index });
+                                allEntries.push({ key, med, taken: entry.taken, notes: entry.notes || "", loggedBy: entry.loggedBy || "Desconhecido", index });
                             }
                         });
                     }
@@ -1087,7 +1146,7 @@
                     });
                 }
 
-                allEntries.forEach(({ key, med, taken, notes, index }) => {
+                allEntries.forEach(({ key, med, taken, notes, loggedBy, index }) => {
                     const li = document.createElement('li');
                     const takenLocal = new Date(new Date(taken).getTime() - 3 * 60 * 60 * 1000);
                     const periodMs = med.periodicity * 60 * 60 * 1000;
@@ -1105,6 +1164,7 @@
                         <div class="report-row">
                             ${med.name} | Tomado: <span class="${onTime ? 'on-time' : 'late'}">${takenLocal.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                             | Esperado: ${index === 0 || !expectedLocal ? 'N/A' : expectedLocal.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            | Registrado por: ${loggedBy}
                             <div>
                                 <button id="editHist-${key}-${index}">Editar</button>
                                 <button id="delHist-${key}-${index}">Excluir</button>
@@ -1130,14 +1190,14 @@
 
                     noteTextarea.addEventListener('blur', () => {
                         const updatedHistory = [...med.history];
-                        updatedHistory[index] = { taken: taken, notes: noteTextarea.value };
+                        updatedHistory[index] = { taken: taken, notes: noteTextarea.value, loggedBy: loggedBy };
                         update(ref(db, `users/${currentUserId}/medications/${key}`), { history: updatedHistory });
                     });
                     noteTextarea.addEventListener('keydown', (e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
                             const updatedHistory = [...med.history];
-                            updatedHistory[index] = { taken: taken, notes: noteTextarea.value };
+                            updatedHistory[index] = { taken: taken, notes: noteTextarea.value, loggedBy: loggedBy };
                             update(ref(db, `users/${currentUserId}/medications/${key}`), { history: updatedHistory });
                             noteTextarea.blur();
                         }
@@ -1155,6 +1215,32 @@
 
                 if (!reportList.children.length) {
                     reportList.innerHTML = '<li>Nenhum registro encontrado!</li>';
+                }
+            });
+        }
+
+        function renderUserRegistryReport() {
+            onValue(usersRef, (snapshot) => {
+                const users = snapshot.val() || {};
+                const reportList = document.getElementById('reportList');
+                reportList.innerHTML = '';
+
+                const userArray = Object.entries(users).sort((a, b) => 
+                    a[1].name.localeCompare(b[1].name)
+                );
+
+                userArray.forEach(([key, user]) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <div class="report-row">
+                            ${user.name} | Cadastrado por: ${user.registeredBy || "Desconhecido"}
+                        </div>
+                    `;
+                    reportList.appendChild(li);
+                });
+
+                if (!reportList.children.length) {
+                    reportList.innerHTML = '<li>Nenhum usuário cadastrado!</li>';
                 }
             });
         }
@@ -1196,8 +1282,11 @@
                 if (currentReportType === 'daily') renderDailyReport('type');
                 else renderReportScreen(currentReportType, 'type');
             });
+            document.getElementById('userRegistryReport').addEventListener('click', () => {
+                currentReportType = 'userRegistry';
+                renderUserRegistryReport();
+            });
 
-            // Adicionar funcionalidade da tecla Enter no campo de nome de usuário
             userNameInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
@@ -1205,7 +1294,6 @@
                 }
             });
 
-            // Adicionar funcionalidade da tecla Enter nos campos de cadastro de item
             addNameInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
