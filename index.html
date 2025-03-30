@@ -136,8 +136,8 @@
     <!-- Tela de Login -->
     <div id="loginScreen">
         <h1>Gerenciador de Medicamentos</h1>
-        <input type="email" id="emailInput" placeholder="E-mail">
-        <input type="password" id="passwordInput" placeholder="Senha">
+        <input type="email" id="emailInput" placeholder="E-mail" autocomplete="off">
+        <input type="password" id="passwordInput" placeholder="Senha" autocomplete="off">
         <button id="loginButton">Entrar</button>
         <button id="registerButton" style="display: none;">Cadastrar</button>
         <button id="resetPasswordButton">Recuperar Senha</button>
@@ -148,9 +148,9 @@
     <!-- Tela de Cadastro de Usuário Autenticado -->
     <div id="registerScreen">
         <h1>Cadastrar Novo Usuário</h1>
-        <input type="text" id="registerNameInput" placeholder="Nome do Usuário">
-        <input type="email" id="registerEmailInput" placeholder="E-mail">
-        <input type="password" id="registerPasswordInput" placeholder="Senha">
+        <input type="text" id="registerNameInput" placeholder="Nome do Usuário" autocomplete="off">
+        <input type="email" id="registerEmailInput" placeholder="E-mail" autocomplete="off">
+        <input type="password" id="registerPasswordInput" placeholder="Senha" autocomplete="off">
         <button id="saveRegisterButton">Salvar</button>
         <button id="backFromRegisterButton">Voltar</button>
         <div id="registerError"></div>
@@ -240,7 +240,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getDatabase, ref, onValue, push, update, remove, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDan0hha-AIKJ2onO-u79Yf480uyR9DroQ",
@@ -258,7 +258,7 @@
         const auth = getAuth(app);
         const usersRef = ref(db, 'users');
         const lastUserRef = ref(db, 'lastUser');
-        const authUsersRef = ref(db, 'authUsers'); // Novo nó para armazenar nomes de usuários autenticados
+        const authUsersRef = ref(db, 'authUsers');
         let currentUserId = null;
         let currentReportType = 'daily';
         let currentAuthUser = null;
@@ -306,7 +306,7 @@
                 onValue(authUsersRef, (snapshot) => {
                     const authUsers = snapshot.val() || {};
                     const user = Object.values(authUsers).find(u => u.email === email);
-                    resolve(user ? user.name : email); // Retorna nome ou e-mail se nome não existir
+                    resolve(user ? user.name : email);
                 }, { onlyOnce: true });
             });
         }
@@ -370,7 +370,7 @@
 
         // Mostrar tela de cadastro
         registerButton.addEventListener('click', () => {
-            if (loginTimeout) clearTimeout(loginTimeout); // Cancela o timeout do login
+            if (loginTimeout) clearTimeout(loginTimeout);
             loginScreen.style.display = 'none';
             registerScreen.style.display = 'block';
             registerNameInput.value = '';
@@ -401,7 +401,7 @@
                     const user = userCredential.user;
                     log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
                     // Salvar nome e e-mail no Realtime Database
-                    set(ref(db, `authUsers/${user.uid}`), {
+                    return set(ref(db, `authUsers/${user.uid}`), {
                         name: name,
                         email: email
                     }).then(() => {
@@ -412,11 +412,25 @@
                             registerScreen.style.display = 'none';
                             loginScreen.style.display = 'block';
                             registerButton.style.display = 'none';
+                            signOut(auth); // Forçar logout para garantir que o novo usuário faça login
                         }, 2000);
+                    }).catch((error) => {
+                        // Se falhar ao salvar no Realtime Database, excluir o usuário criado no Authentication
+                        registerError.textContent = "Erro ao salvar dados do usuário: Permissão negada ou falha no banco de dados.";
+                        log(`Erro ao salvar no Realtime Database: ${error.message}`);
+                        deleteUser(user).then(() => {
+                            log(`Usuário ${email} removido do Authentication devido a falha no Realtime Database.`);
+                        }).catch((delError) => {
+                            log(`Erro ao remover usuário do Authentication: ${delError.message}`);
+                        });
                     });
                 })
                 .catch((error) => {
-                    registerError.textContent = `Erro ao cadastrar: ${error.message}`;
+                    if (error.code === 'auth/email-already-in-use') {
+                        registerError.textContent = "Este e-mail já está em uso. Tente outro ou faça login.";
+                    } else {
+                        registerError.textContent = `Erro ao cadastrar: ${error.message}`;
+                    }
                     log(`Erro ao cadastrar usuário: ${error.message}`);
                 });
         });
