@@ -326,7 +326,6 @@
                 log(`Usuário autenticado: ${user.email}`);
                 currentAuthUser = user;
                 currentAuthUserName = await getAuthUserName(user.email);
-                registerButton.style.display = 'inline-block';
                 loginScreen.style.display = 'none';
                 appScreen.style.display = 'block';
                 renderMainScreen();
@@ -337,7 +336,7 @@
                 loginScreen.style.display = 'block';
                 appScreen.style.display = 'none';
                 registerScreen.style.display = 'none';
-                registerButton.style.display = 'none';
+                registerButton.style.display = 'none'; // Esconder botão ao sair
             }
         });
 
@@ -354,9 +353,13 @@
                     log(`Login bem-sucedido: ${userCredential.user.email}`);
                     loginError.textContent = '';
                     loginSuccess.textContent = "Login realizado com sucesso!";
+                    registerButton.style.display = 'inline-block'; // Mostrar botão "Cadastrar"
                     setTimeout(() => {
                         loginSuccess.textContent = '';
-                    }, 3000);
+                        loginScreen.style.display = 'none';
+                        appScreen.style.display = 'block';
+                        renderMainScreen();
+                    }, 3000); // 3 segundos antes de entrar no app
                 })
                 .catch((error) => {
                     loginError.textContent = `Erro ao fazer login: ${error.message}`;
@@ -399,6 +402,7 @@
                         registerSuccess.textContent = '';
                         registerScreen.style.display = 'none';
                         loginScreen.style.display = 'block';
+                        registerButton.style.display = 'none'; // Esconder após cadastro
                     }, 2000);
                 })
                 .catch((error) => {
@@ -429,7 +433,11 @@
 
         backFromRegisterButton.addEventListener('click', () => {
             registerScreen.style.display = 'none';
-            appScreen.style.display = 'block';
+            if (currentAuthUser) {
+                appScreen.style.display = 'block';
+            } else {
+                loginScreen.style.display = 'block';
+            }
         });
 
         // Recuperação de senha
