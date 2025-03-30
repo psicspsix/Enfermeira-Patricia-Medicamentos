@@ -165,7 +165,7 @@
                 <span id="currentTime"></span>
             </div>
             <div class="nav-buttons">
-                <button id="goToUser">Usuário</button>
+                <button id="goToUser">Pacientes</button>
                 <button id="goToAdd">Cadastrar Item</button>
                 <button id="goToEdit">Alterar Item</button>
                 <button id="goToDelete">Excluir ou Mudar Status do Item</button>
@@ -178,8 +178,8 @@
         </div>
 
         <div id="userScreen" class="screen">
-            <h1>Usuários</h1>
-            <input type="text" id="userNameInput" placeholder="Nome do usuário">
+            <h1>Pacientes</h1>
+            <input type="text" id="userNameInput" placeholder="Nome do paciente">
             <button id="saveUser">Salvar</button>
             <button id="backFromUser">Voltar</button>
             <ul id="userList"></ul>
@@ -240,7 +240,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getDatabase, ref, onValue, push, update, remove, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut, listUsers } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDan0hha-AIKJ2onO-u79Yf480uyR9DroQ",
@@ -287,7 +287,7 @@
         const registerError = document.getElementById('registerError');
         const registerSuccess = document.getElementById('registerSuccess');
 
-        // Elementos DOM para as telas de usuários e medicamentos
+        // Elementos DOM para as telas de pacientes e medicamentos
         const userNameInput = document.getElementById('userNameInput');
         const addNameInput = document.getElementById('addNameInput');
         const addPeriodInput = document.getElementById('addPeriodInput');
@@ -636,18 +636,18 @@
             log("Iniciando addUser para: " + name);
 
             if (!name) {
-                document.getElementById('userError').textContent = "Preencha o nome do usuário!";
-                log("Tentativa de adicionar usuário sem nome.");
+                document.getElementById('userError').textContent = "Preencha o nome do paciente!";
+                log("Tentativa de adicionar paciente sem nome.");
                 return;
             }
 
             if (!auth.currentUser) {
                 document.getElementById('userError').textContent = "Usuário não autenticado! Faça login novamente.";
-                log("Tentativa de adicionar usuário sem autenticação.");
+                log("Tentativa de adicionar paciente sem autenticação.");
                 return;
             }
 
-            log("Usuário autenticado: " + auth.currentUser.email + ". Tentando adicionar usuário: " + name);
+            log("Usuário autenticado: " + auth.currentUser.email + ". Tentando adicionar paciente: " + name);
 
             log("Executando push para /users...");
             push(usersRef, {
@@ -657,7 +657,7 @@
                 registeredById: currentAuthUser.uid
             }).then((newUserRef) => {
                 const userId = newUserRef.key;
-                log(`Novo usuário criado com ID: ${userId}`);
+                log(`Novo paciente criado com ID: ${userId}`);
 
                 log("Executando set para /lastUser...");
                 return set(lastUserRef, { id: userId }).then(() => {
@@ -665,13 +665,13 @@
                     currentUserId = userId;
                     nameInput.value = '';
                     document.getElementById('userError').textContent = '';
-                    document.getElementById('userSuccess').textContent = "Usuário cadastrado com sucesso!";
+                    document.getElementById('userSuccess').textContent = "Paciente cadastrado com sucesso!";
                     setTimeout(() => document.getElementById('userSuccess').textContent = '', 2000);
                     showScreen('mainScreen');
                 });
             }).catch((error) => {
                 log("Erro durante a operação no Firebase: " + error.message);
-                document.getElementById('userError').textContent = "Erro ao cadastrar usuário: " + error.message;
+                document.getElementById('userError').textContent = "Erro ao cadastrar paciente: " + error.message;
             }).finally(() => {
                 log("Fim da execução de addUser.");
             });
@@ -743,11 +743,11 @@
                     });
 
                     document.getElementById(`deleteUser-${key}`).addEventListener('click', () => {
-                        if (confirm("Tem certeza que deseja excluir este usuário? Isso excluirá todos os medicamentos associados!")) {
+                        if (confirm("Tem certeza que deseja excluir este paciente? Isso excluirá todos os medicamentos associados!")) {
                             remove(ref(db, `users/${key}`)).then(() => {
                                 if (currentUserId === key) {
                                     set(lastUserRef, null);
-                                    document.getElementById('goToUser').textContent = "Usuário";
+                                    document.getElementById('goToUser').textContent = "Pacientes";
                                     currentUserId = null;
                                     renderMainScreen();
                                 }
@@ -760,8 +760,8 @@
 
         function addMedication() {
             if (!currentUserId) {
-                document.getElementById('addError').textContent = "Selecione um usuário primeiro!";
-                log("Tentativa de adicionar medicamento sem usuário selecionado.");
+                document.getElementById('addError').textContent = "Selecione um paciente primeiro!";
+                log("Tentativa de adicionar medicamento sem paciente selecionado.");
                 return;
             }
             const nameInput = document.getElementById('addNameInput');
@@ -788,7 +788,7 @@
                 periodInput.value = '';
                 document.getElementById('addError').textContent = '';
                 document.getElementById('addSuccess').textContent = "Item cadastrado com sucesso!";
-                log(`Medicamento ${name} cadastrado para o usuário ${currentUserId}.`);
+                log(`Medicamento ${name} cadastrado para o paciente ${currentUserId}.`);
                 setTimeout(() => document.getElementById('addSuccess').textContent = '', 2000);
                 showScreen('mainScreen');
             }).catch((error) => {
@@ -1256,33 +1256,9 @@
         }
 
         function renderUserRegistryReport() {
-            // Nota: listUsers não está disponível no cliente, requer Firebase Admin SDK
-            // Aqui, simularemos uma lista manual ou usaremos uma abordagem alternativa
             const reportList = document.getElementById('reportList');
             reportList.innerHTML = '<li>Lista de usuários autenticados não disponível no cliente. Use o Firebase Admin SDK no backend.</li>';
             log("Tentativa de listar usuários autenticados. Esta funcionalidade requer backend.");
-            
-            // Para listar usuários reais, você precisaria:
-            // 1. Criar um endpoint no backend com Firebase Admin SDK
-            // 2. Chamar esse endpoint aqui via fetch
-            // Exemplo fictício:
-            /*
-            fetch('https://seu-backend.com/list-users', {
-                headers: { Authorization: `Bearer ${await auth.currentUser.getIdToken()}` }
-            })
-            .then(response => response.json())
-            .then(users => {
-                reportList.innerHTML = '';
-                users.forEach(user => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<div class="report-row">${user.email} | Cadastrado em: ${new Date(user.metadata.creationTime).toLocaleString('pt-BR')}</div>`;
-                    reportList.appendChild(li);
-                });
-            })
-            .catch(error => {
-                reportList.innerHTML = `<li>Erro ao carregar usuários: ${error.message}</li>`;
-            });
-            */
         }
 
         document.addEventListener('DOMContentLoaded', () => {
