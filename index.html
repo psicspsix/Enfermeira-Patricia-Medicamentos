@@ -1289,8 +1289,34 @@
 
         function renderUserRegistryReport() {
             const reportList = document.getElementById('reportList');
-            reportList.innerHTML = '<li>Lista de usuários autenticados não disponível no cliente. Use o Firebase Admin SDK no backend.</li>';
-            log("Tentativa de listar usuários autenticados. Esta funcionalidade requer backend.");
+            reportList.innerHTML = ''; // Limpar lista antes de renderizar
+
+            onValue(authUsersRef, (snapshot) => {
+                const authUsers = snapshot.val() || {};
+                const userArray = Object.entries(authUsers).map(([uid, user]) => ({
+                    uid,
+                    name: user.name,
+                    email: user.email
+                }));
+
+                if (userArray.length === 0) {
+                    reportList.innerHTML = '<li>Nenhum usuário autenticado encontrado!</li>';
+                    return;
+                }
+
+                userArray.sort((a, b) => a.name.localeCompare(b.name)); // Ordenar por nome
+
+                userArray.forEach(({ uid, name, email }) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <div class="report-row">
+                            <span>${name} | E-mail: ${email} | UID: ${uid}</span>
+                        </div>
+                    `;
+                    reportList.appendChild(li);
+                });
+            }, { onlyOnce: true });
+            log("Lista de usuários autenticados renderizada a partir de /authUsers.");
         }
 
         document.addEventListener('DOMContentLoaded', () => {
