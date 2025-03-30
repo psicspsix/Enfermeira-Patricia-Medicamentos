@@ -258,11 +258,13 @@
         const auth = getAuth(app);
         const usersRef = ref(db, 'users');
         const lastUserRef = ref(db, 'lastUser');
+        const authUsersRef = ref(db, 'authUsers'); // Novo nó para armazenar nomes de usuários autenticados
         let currentUserId = null;
         let currentReportType = 'daily';
         let currentAuthUser = null;
         let currentAuthUserName = null;
-        let isLoggingIn = false; // Controle para evitar interferência do onAuthStateChanged
+        let isLoggingIn = false;
+        let loginTimeout = null;
 
         function getMedsRef() {
             return currentUserId ? ref(db, `users/${currentUserId}/medications`) : ref(db, 'medications');
@@ -298,18 +300,13 @@
             console.log(`[LOG ${new Date().toLocaleTimeString()}]: ${message}`);
         }
 
-        // Função para obter o nome do usuário autenticado a partir do banco de dados
+        // Função para obter ou salvar o nome do usuário autenticado
         function getAuthUserName(email) {
             return new Promise((resolve) => {
-                onValue(usersRef, (snapshot) => {
-                    const users = snapshot.val() || {};
-                    let foundName = null;
-                    Object.values(users).forEach(user => {
-                        if (user.email === email) {
-                            foundName = user.name;
-                        }
-                    });
-                    resolve(foundName || email);
+                onValue(authUsersRef, (snapshot) => {
+                    const authUsers = snapshot.val() || {};
+                    const user = Object.values(authUsers).find(u => u.email === email);
+                    resolve(user ? user.name : email); // Retorna nome ou e-mail se nome não existir
                 }, { onlyOnce: true });
             });
         }
@@ -323,7 +320,7 @@
 
         // Verificar estado de autenticação
         onAuthStateChanged(auth, async (user) => {
-            if (user && !isLoggingIn) { // Só mudar tela se não estiver no processo de login
+            if (user && !isLoggingIn) {
                 log(`Usuário autenticado: ${user.email}`);
                 currentAuthUser = user;
                 currentAuthUserName = await getAuthUserName(user.email);
@@ -337,7 +334,7 @@
                 loginScreen.style.display = 'block';
                 appScreen.style.display = 'none';
                 registerScreen.style.display = 'none';
-                registerButton.style.display = 'none'; // Esconder botão ao sair
+                registerButton.style.display = 'none';
             }
         });
 
@@ -349,30 +346,31 @@
                 loginError.textContent = "Preencha e-mail e senha!";
                 return;
             }
-            isLoggingIn = true; // Iniciar processo de login
+            isLoggingIn = true;
             signInWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
                     log(`Login bem-sucedido: ${userCredential.user.email}`);
                     loginError.textContent = '';
                     loginSuccess.textContent = "Login realizado com sucesso!";
-                    registerButton.style.display = 'inline-block'; // Mostrar botão "Cadastrar"
-                    setTimeout(() => {
+                    registerButton.style.display = 'inline-block';
+                    loginTimeout = setTimeout(() => {
                         loginSuccess.textContent = '';
                         loginScreen.style.display = 'none';
                         appScreen.style.display = 'block';
                         renderMainScreen();
-                        isLoggingIn = false; // Finalizar processo de login
-                    }, 3000); // 3 segundos antes de entrar no app
+                        isLoggingIn = false;
+                    }, 3000);
                 })
                 .catch((error) => {
                     loginError.textContent = `Erro ao fazer login: ${error.message}`;
                     log(`Erro ao fazer login: ${error.message}`);
-                    isLoggingIn = false; // Resetar em caso de erro
+                    isLoggingIn = false;
                 });
         });
 
         // Mostrar tela de cadastro
         registerButton.addEventListener('click', () => {
+            if (loginTimeout) clearTimeout(loginTimeout); // Cancela o timeout do login
             loginScreen.style.display = 'none';
             registerScreen.style.display = 'block';
             registerNameInput.value = '';
@@ -380,7 +378,7 @@
             registerPasswordInput.value = '';
             registerError.textContent = '';
             registerSuccess.textContent = '';
-            isLoggingIn = false; // Resetar ao entrar na tela de cadastro
+            isLoggingIn = false;
         });
 
         // Salvar novo usuário autenticado
@@ -400,15 +398,22 @@
 
             createUserWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
+                    const user = userCredential.user;
                     log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
-                    registerError.textContent = '';
-                    registerSuccess.textContent = "Usuário cadastrado com sucesso! Faça login com o novo usuário.";
-                    setTimeout(() => {
-                        registerSuccess.textContent = '';
-                        registerScreen.style.display = 'none';
-                        loginScreen.style.display = 'block';
-                        registerButton.style.display = 'none'; // Esconder após cadastro
-                    }, 2000);
+                    // Salvar nome e e-mail no Realtime Database
+                    set(ref(db, `authUsers/${user.uid}`), {
+                        name: name,
+                        email: email
+                    }).then(() => {
+                        registerError.textContent = '';
+                        registerSuccess.textContent = "Usuário cadastrado com sucesso! Faça login com o novo usuário.";
+                        setTimeout(() => {
+                            registerSuccess.textContent = '';
+                            registerScreen.style.display = 'none';
+                            loginScreen.style.display = 'block';
+                            registerButton.style.display = 'none';
+                        }, 2000);
+                    });
                 })
                 .catch((error) => {
                     registerError.textContent = `Erro ao cadastrar: ${error.message}`;
