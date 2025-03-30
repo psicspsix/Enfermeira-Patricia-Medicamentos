@@ -240,7 +240,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getDatabase, ref, onValue, push, update, remove, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut, listUsers } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDan0hha-AIKJ2onO-u79Yf480uyR9DroQ",
@@ -313,13 +313,22 @@
             });
         }
 
+        // Forçar logout ao carregar a página
+        signOut(auth).then(() => {
+            log("Logout inicial realizado ao carregar a página.");
+        }).catch((error) => {
+            log(`Erro ao realizar logout inicial: ${error.message}`);
+        });
+
         // Verificar estado de autenticação
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 log(`Usuário autenticado: ${user.email}`);
                 currentAuthUser = user;
-                currentAuthUserName = await getAuthUserName(user.email); // Obtém o nome ou e-mail
+                currentAuthUserName = await getAuthUserName(user.email);
                 registerButton.style.display = 'inline-block';
+                loginScreen.style.display = 'none';
+                appScreen.style.display = 'block';
                 renderMainScreen();
             } else {
                 log("Nenhum usuário autenticado.");
@@ -345,11 +354,8 @@
                     log(`Login bem-sucedido: ${userCredential.user.email}`);
                     loginError.textContent = '';
                     loginSuccess.textContent = "Login realizado com sucesso!";
-                    registerButton.style.display = 'inline-block';
                     setTimeout(() => {
                         loginSuccess.textContent = '';
-                        loginScreen.style.display = 'none';
-                        appScreen.style.display = 'block';
                     }, 3000);
                 })
                 .catch((error) => {
@@ -369,8 +375,8 @@
             registerSuccess.textContent = '';
         });
 
-        // Salvar novo usuário autenticado sem mudar o estado de autenticação
-        saveRegisterButton.addEventListener('click', async () => {
+        // Salvar novo usuário autenticado
+        saveRegisterButton.addEventListener('click', () => {
             const name = registerNameInput.value.trim();
             const email = registerEmailInput.value.trim();
             const password = registerPasswordInput.value.trim();
@@ -384,28 +390,21 @@
                 return;
             }
 
-            // Salvar o estado do usuário atual antes de criar o novo
-            const originalUser = currentAuthUser;
-
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
-
-                // Restaurar o usuário original imediatamente após criar o novo
-                await signInWithEmailAndPassword(auth, originalUser.email, passwordInput.value.trim());
-                log(`Usuário original restaurado: ${originalUser.email}`);
-
-                registerError.textContent = '';
-                registerSuccess.textContent = "Usuário cadastrado com sucesso!";
-                setTimeout(() => {
-                    registerSuccess.textContent = '';
-                    registerScreen.style.display = 'none';
-                    appScreen.style.display = 'block';
-                }, 2000);
-            } catch (error) {
-                registerError.textContent = `Erro ao cadastrar: ${error.message}`;
-                log(`Erro ao cadastrar usuário: ${error.message}`);
-            }
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
+                    registerError.textContent = '';
+                    registerSuccess.textContent = "Usuário cadastrado com sucesso! Faça login com o novo usuário.";
+                    setTimeout(() => {
+                        registerSuccess.textContent = '';
+                        registerScreen.style.display = 'none';
+                        loginScreen.style.display = 'block';
+                    }, 2000);
+                })
+                .catch((error) => {
+                    registerError.textContent = `Erro ao cadastrar: ${error.message}`;
+                    log(`Erro ao cadastrar usuário: ${error.message}`);
+                });
         });
 
         // Adicionar funcionalidade de "Enter" na tela de cadastro
@@ -1257,29 +1256,33 @@
         }
 
         function renderUserRegistryReport() {
-            onValue(usersRef, (snapshot) => {
-                const users = snapshot.val() || {};
-                const reportList = document.getElementById('reportList');
+            // Nota: listUsers não está disponível no cliente, requer Firebase Admin SDK
+            // Aqui, simularemos uma lista manual ou usaremos uma abordagem alternativa
+            const reportList = document.getElementById('reportList');
+            reportList.innerHTML = '<li>Lista de usuários autenticados não disponível no cliente. Use o Firebase Admin SDK no backend.</li>';
+            log("Tentativa de listar usuários autenticados. Esta funcionalidade requer backend.");
+            
+            // Para listar usuários reais, você precisaria:
+            // 1. Criar um endpoint no backend com Firebase Admin SDK
+            // 2. Chamar esse endpoint aqui via fetch
+            // Exemplo fictício:
+            /*
+            fetch('https://seu-backend.com/list-users', {
+                headers: { Authorization: `Bearer ${await auth.currentUser.getIdToken()}` }
+            })
+            .then(response => response.json())
+            .then(users => {
                 reportList.innerHTML = '';
-
-                const userArray = Object.entries(users).sort((a, b) => 
-                    a[1].name.localeCompare(b[1].name)
-                );
-
-                userArray.forEach(([key, user]) => {
+                users.forEach(user => {
                     const li = document.createElement('li');
-                    li.innerHTML = `
-                        <div class="report-row">
-                            ${user.name} | Cadastrado por: ${user.registeredBy || "Desconhecido"}
-                        </div>
-                    `;
+                    li.innerHTML = `<div class="report-row">${user.email} | Cadastrado em: ${new Date(user.metadata.creationTime).toLocaleString('pt-BR')}</div>`;
                     reportList.appendChild(li);
                 });
-
-                if (!reportList.children.length) {
-                    reportList.innerHTML = '<li>Nenhum usuário cadastrado!</li>';
-                }
+            })
+            .catch(error => {
+                reportList.innerHTML = `<li>Erro ao carregar usuários: ${error.message}</li>`;
             });
+            */
         }
 
         document.addEventListener('DOMContentLoaded', () => {
