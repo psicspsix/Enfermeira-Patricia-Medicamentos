@@ -319,7 +319,7 @@
                 log(`Usuário autenticado: ${user.email}`);
                 currentAuthUser = user;
                 currentAuthUserName = await getAuthUserName(user.email); // Obtém o nome ou e-mail
-                registerButton.style.display = 'inline-block'; // Mostra o botão "Cadastrar"
+                registerButton.style.display = 'inline-block';
                 renderMainScreen();
             } else {
                 log("Nenhum usuário autenticado.");
@@ -369,8 +369,8 @@
             registerSuccess.textContent = '';
         });
 
-        // Salvar novo usuário autenticado
-        saveRegisterButton.addEventListener('click', () => {
+        // Salvar novo usuário autenticado sem mudar o estado de autenticação
+        saveRegisterButton.addEventListener('click', async () => {
             const name = registerNameInput.value.trim();
             const email = registerEmailInput.value.trim();
             const password = registerPasswordInput.value.trim();
@@ -384,21 +384,28 @@
                 return;
             }
 
-            createUserWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
-                    registerError.textContent = '';
-                    registerSuccess.textContent = "Usuário cadastrado com sucesso!";
-                    setTimeout(() => {
-                        registerSuccess.textContent = '';
-                        registerScreen.style.display = 'none';
-                        appScreen.style.display = 'block';
-                    }, 2000);
-                })
-                .catch((error) => {
-                    registerError.textContent = `Erro ao cadastrar: ${error.message}`;
-                    log(`Erro ao cadastrar usuário: ${error.message}`);
-                });
+            // Salvar o estado do usuário atual antes de criar o novo
+            const originalUser = currentAuthUser;
+
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
+
+                // Restaurar o usuário original imediatamente após criar o novo
+                await signInWithEmailAndPassword(auth, originalUser.email, passwordInput.value.trim());
+                log(`Usuário original restaurado: ${originalUser.email}`);
+
+                registerError.textContent = '';
+                registerSuccess.textContent = "Usuário cadastrado com sucesso!";
+                setTimeout(() => {
+                    registerSuccess.textContent = '';
+                    registerScreen.style.display = 'none';
+                    appScreen.style.display = 'block';
+                }, 2000);
+            } catch (error) {
+                registerError.textContent = `Erro ao cadastrar: ${error.message}`;
+                log(`Erro ao cadastrar usuário: ${error.message}`);
+            }
         });
 
         // Adicionar funcionalidade de "Enter" na tela de cadastro
