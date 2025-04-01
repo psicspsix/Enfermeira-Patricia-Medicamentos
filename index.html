@@ -310,25 +310,19 @@
             });
         }
 
-        // Forçar logout ao carregar a página
-        signOut(auth).then(() => {
-            log("Logout inicial realizado ao carregar a página.");
-        }).catch((error) => {
-            log(`Erro ao realizar logout inicial: ${error.message}`);
-        });
-
         // Verificar estado de autenticação
         onAuthStateChanged(auth, async (user) => {
             if (user && !isLoggingIn) {
                 log(`Usuário autenticado detectado: ${user.email}`);
                 currentAuthUser = user;
-                currentAuthUserName = await getAuthUserNameByUid(user.uid); // Define como nome ou e-mail
+                currentAuthUserName = await getAuthUserNameByUid(user.uid);
+                log(`currentAuthUser definido como: ${currentAuthUser.email}`);
                 loginScreen.style.display = 'none';
                 appScreen.style.display = 'block';
-                registerButton.style.display = 'inline-block'; // Exibe o botão "Cadastrar" ao logar
+                registerButton.style.display = 'inline-block';
                 renderMainScreen();
             } else if (!user) {
-                log("Nenhum usuário autenticado.");
+                log("Nenhum usuário autenticado detectado.");
                 currentAuthUser = null;
                 currentAuthUserName = null;
                 loginScreen.style.display = 'block';
@@ -370,11 +364,13 @@
 
         // Mostrar tela de cadastro com verificação de autenticação
         registerButton.addEventListener('click', () => {
+            log(`Botão 'Cadastrar' clicado. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}`);
             if (!currentAuthUser) {
                 loginError.textContent = "Nenhum usuário autenticado! Faça login novamente.";
                 log("Tentativa de acessar cadastro sem usuário autenticado.");
                 loginScreen.style.display = 'block';
                 appScreen.style.display = 'none';
+                registerScreen.style.display = 'none';
                 return;
             }
             if (loginTimeout) clearTimeout(loginTimeout);
@@ -395,6 +391,8 @@
             const name = registerNameInput.value.trim();
             const email = registerEmailInput.value.trim();
             const password = registerPasswordInput.value.trim();
+
+            log(`Tentativa de salvar novo usuário. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}`);
 
             if (!name || !email || !password) {
                 registerError.textContent = "Preencha todos os campos!";
