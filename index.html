@@ -139,7 +139,7 @@
         <input type="email" id="emailInput" placeholder="E-mail" autocomplete="off" autocapitalize="none">
         <input type="password" id="passwordInput" placeholder="Senha" autocomplete="new-password">
         <button id="loginButton">Entrar</button>
-        <button id="registerButton" style="display: none;">Cadastrar</button>
+        <button id="registerButton">Cadastrar</button>
         <button id="resetPasswordButton">Recuperar Senha</button>
         <div id="loginError"></div>
         <div id="loginSuccess"></div>
@@ -264,7 +264,6 @@
         let currentAuthUser = null;
         let currentAuthUserName = null;
         let isLoggingIn = false;
-        let loginTimeout = null;
 
         function getMedsRef() {
             return currentUserId ? ref(db, `users/${currentUserId}/medications`) : ref(db, 'medications');
@@ -310,31 +309,41 @@
             });
         }
 
-        // Verificar estado de autenticação
-        onAuthStateChanged(auth, async (user) => {
-            if (user && !isLoggingIn) {
-                log(`Usuário autenticado detectado: ${user.email}`);
-                currentAuthUser = user;
-                currentAuthUserName = await getAuthUserNameByUid(user.uid);
-                log(`currentAuthUser definido como: ${currentAuthUser.email}`);
-                loginScreen.style.display = 'none';
-                appScreen.style.display = 'block';
-                registerButton.style.display = 'none'; // Esconde "Cadastrar" na tela principal
-                renderMainScreen();
-            } else if (!user) {
-                log("Nenhum usuário autenticado detectado.");
-                currentAuthUser = null;
-                currentAuthUserName = null;
-                loginScreen.style.display = 'block';
-                appScreen.style.display = 'none';
-                registerScreen.style.display = 'none';
-                registerButton.style.display = 'inline-block'; // Mostra "Cadastrar" na tela de login
-            }
+        // Promessa para aguardar o estado de autenticação
+        function waitForAuthState() {
+            return new Promise((resolve) => {
+                const unsubscribe = onAuthStateChanged(auth, async (user) => {
+                    unsubscribe(); // Cancela o listener após a primeira execução
+                    if (user && !isLoggingIn) {
+                        log(`Usuário autenticado detectado: ${user.email}`);
+                        currentAuthUser = user;
+                        currentAuthUserName = await getAuthUserNameByUid(user.uid);
+                        log(`currentAuthUser definido como: ${currentAuthUser.email}`);
+                        loginScreen.style.display = 'none';
+                        appScreen.style.display = 'block';
+                        renderMainScreen();
+                        resolve(true);
+                    } else {
+                        log("Nenhum usuário autenticado detectado.");
+                        currentAuthUser = null;
+                        currentAuthUserName = null;
+                        loginScreen.style.display = 'block';
+                        appScreen.style.display = 'none';
+                        registerScreen.style.display = 'none';
+                        resolve(false);
+                    }
+                });
+            });
+        }
+
+        // Inicializar o estado de autenticação ao carregar a página
+        waitForAuthState().then((isAuthenticated) => {
+            log(`Estado inicial de autenticação resolvido: ${isAuthenticated ? 'Autenticado' : 'Não autenticado'}`);
         });
 
         // Login
         loginButton.addEventListener('click', (e) => {
-            e.preventDefault(); // Impede comportamento padrão do formulário
+            e.preventDefault();
             const email = emailInput.value.trim();
             const password = passwordInput.value.trim();
             if (!email || !password) {
@@ -347,13 +356,11 @@
                     log(`Login bem-sucedido: ${userCredential.user.email}`);
                     loginError.textContent = '';
                     loginSuccess.textContent = "Login realizado com sucesso!";
-                    loginTimeout = setTimeout(() => {
+                    setTimeout(() => {
                         loginSuccess.textContent = '';
-                        loginScreen.style.display = 'none';
-                        appScreen.style.display = 'block';
-                        registerButton.style.display = 'none'; // Esconde "Cadastrar" após login
-                        renderMainScreen();
-                        isLoggingIn = false;
+                        waitForAuthState().then(() => {
+                            isLoggingIn = false;
+                        });
                     }, 3000);
                 })
                 .catch((error) => {
@@ -367,7 +374,6 @@
         registerButton.addEventListener('click', () => {
             log(`Botão 'Cadastrar' clicado. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}`);
             if (currentAuthUser) {
-                // Usuário já está logado, vai direto para a tela de cadastro
                 loginScreen.style.display = 'none';
                 appScreen.style.display = 'none';
                 registerScreen.style.display = 'block';
@@ -378,7 +384,6 @@
                 registerSuccess.textContent = '';
                 log("Tela de cadastro exibida com usuário autenticado: " + currentAuthUser.email);
             } else {
-                // Usuário não está logado, exibe mensagem e mantém na tela de login
                 loginError.textContent = "Faça login primeiro para cadastrar um novo usuário!";
                 log("Tentativa de acessar cadastro sem usuário autenticado.");
             }
