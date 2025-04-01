@@ -394,6 +394,11 @@
                 registerError.textContent = "A senha deve ter pelo menos 6 caracteres!";
                 return;
             }
+            if (!currentAuthUser) {
+                registerError.textContent = "Nenhum usuário autenticado! Faça login novamente.";
+                log("Tentativa de cadastro sem usuário autenticado.");
+                return;
+            }
 
             createUserWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
@@ -403,7 +408,7 @@
                     return set(ref(db, `authUsers/${user.uid}`), {
                         name: name,
                         email: email,
-                        registeredById: currentAuthUser ? currentAuthUser.uid : user.uid // Salva o UID de quem cadastrou
+                        registeredById: currentAuthUser.uid // Sempre o UID do usuário autenticado
                     }).then(() => {
                         registerError.textContent = '';
                         registerSuccess.textContent = "Usuário cadastrado com sucesso! Faça login com o novo usuário.";
@@ -1296,7 +1301,7 @@
                     uid,
                     name: user.name || user.email, // Usa o nome ou e-mail se não houver nome
                     email: user.email,
-                    registeredById: user.registeredById || uid // Assume que o próprio usuário se cadastrou se não houver registeredById
+                    registeredById: user.registeredById || uid // Se não houver registeredById, assume auto-registro
                 }));
 
                 if (userArray.length === 0) {
@@ -1324,6 +1329,9 @@
                         `;
                         reportList.appendChild(li);
                     });
+                }).catch((error) => {
+                    log(`Erro ao buscar nomes de registrados: ${error.message}`);
+                    document.getElementById('reportError').textContent = "Erro ao carregar relatório: " + error.message;
                 });
             }, { onlyOnce: true });
             log("Lista de usuários autenticados renderizada a partir de /authUsers.");
