@@ -320,11 +320,12 @@
         // Verificar estado de autenticação
         onAuthStateChanged(auth, async (user) => {
             if (user && !isLoggingIn) {
-                log(`Usuário autenticado: ${user.email}`);
+                log(`Usuário autenticado detectado: ${user.email}`);
                 currentAuthUser = user;
                 currentAuthUserName = await getAuthUserNameByUid(user.uid); // Define como nome ou e-mail
                 loginScreen.style.display = 'none';
                 appScreen.style.display = 'block';
+                registerButton.style.display = 'inline-block'; // Exibe o botão "Cadastrar" ao logar
                 renderMainScreen();
             } else if (!user) {
                 log("Nenhum usuário autenticado.");
@@ -367,10 +368,18 @@
                 });
         });
 
-        // Mostrar tela de cadastro
+        // Mostrar tela de cadastro com verificação de autenticação
         registerButton.addEventListener('click', () => {
+            if (!currentAuthUser) {
+                loginError.textContent = "Nenhum usuário autenticado! Faça login novamente.";
+                log("Tentativa de acessar cadastro sem usuário autenticado.");
+                loginScreen.style.display = 'block';
+                appScreen.style.display = 'none';
+                return;
+            }
             if (loginTimeout) clearTimeout(loginTimeout);
             loginScreen.style.display = 'none';
+            appScreen.style.display = 'none';
             registerScreen.style.display = 'block';
             registerNameInput.value = '';
             registerEmailInput.value = '';
@@ -378,6 +387,7 @@
             registerError.textContent = '';
             registerSuccess.textContent = '';
             isLoggingIn = false;
+            log("Tela de cadastro exibida com usuário autenticado: " + currentAuthUser.email);
         });
 
         // Salvar novo usuário autenticado
@@ -397,6 +407,8 @@
             if (!currentAuthUser) {
                 registerError.textContent = "Nenhum usuário autenticado! Faça login novamente.";
                 log("Tentativa de cadastro sem usuário autenticado.");
+                registerScreen.style.display = 'none';
+                loginScreen.style.display = 'block';
                 return;
             }
 
@@ -417,7 +429,11 @@
                             registerScreen.style.display = 'none';
                             loginScreen.style.display = 'block';
                             registerButton.style.display = 'none';
-                            signOut(auth); // Forçar logout para garantir que o novo usuário faça login
+                            signOut(auth).then(() => {
+                                log("Logout realizado após cadastro bem-sucedido.");
+                            }).catch((error) => {
+                                log(`Erro ao fazer logout após cadastro: ${error.message}`);
+                            });
                         }, 2000);
                     }).catch((error) => {
                         registerError.textContent = "Erro ao salvar dados do usuário: Permissão negada ou falha no banco de dados.";
