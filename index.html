@@ -300,13 +300,12 @@
             console.log(`[LOG ${new Date().toLocaleTimeString()}]: ${message}`);
         }
 
-        // Função para obter o nome ou e-mail do usuário autenticado
-        function getAuthUserName(email) {
+        // Função para obter o nome ou e-mail do usuário autenticado por UID
+        function getAuthUserNameByUid(uid) {
             return new Promise((resolve) => {
-                onValue(authUsersRef, (snapshot) => {
-                    const authUsers = snapshot.val() || {};
-                    const user = Object.values(authUsers).find(u => u.email === email);
-                    resolve(user ? user.name : email); // Retorna o nome ou o e-mail se o nome não existir
+                onValue(ref(db, `authUsers/${uid}`), (snapshot) => {
+                    const user = snapshot.val();
+                    resolve(user ? (user.name || user.email) : "Usuário Desconhecido");
                 }, { onlyOnce: true });
             });
         }
@@ -323,7 +322,7 @@
             if (user && !isLoggingIn) {
                 log(`Usuário autenticado: ${user.email}`);
                 currentAuthUser = user;
-                currentAuthUserName = await getAuthUserName(user.email); // Define como nome ou e-mail
+                currentAuthUserName = await getAuthUserNameByUid(user.uid); // Define como nome ou e-mail
                 loginScreen.style.display = 'none';
                 appScreen.style.display = 'block';
                 renderMainScreen();
@@ -404,7 +403,7 @@
                     return set(ref(db, `authUsers/${user.uid}`), {
                         name: name,
                         email: email,
-                        registeredById: currentAuthUser ? currentAuthUser.uid : user.uid // Salva o UID de quem cadastrou ou o próprio UID se for o primeiro usuário
+                        registeredById: currentAuthUser ? currentAuthUser.uid : user.uid // Salva o UID de quem cadastrou
                     }).then(() => {
                         registerError.textContent = '';
                         registerSuccess.textContent = "Usuário cadastrado com sucesso! Faça login com o novo usuário.";
@@ -1230,7 +1229,7 @@
                     const onTime = index === 0 || diff <= 30 * 60 * 1000;
                     li.innerHTML = `
                         <div class="report-row">
-                            ${med.name} | Tom featado: <span class="${onTime ? 'on-time' : 'late'}">${takenLocal.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                            ${med.name} | Tomado: <span class="${onTime ? 'on-time' : 'late'}">${takenLocal.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                             | Esperado: ${index === 0 || !expectedLocal ? 'N/A' : expectedLocal.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
                             | Registrado por: ${loggedBy}
                             <div>
@@ -1307,16 +1306,10 @@
 
                 // Buscar o nome ou e-mail de quem cadastrou
                 const promises = userArray.map(user => {
-                    if (user.registeredById === user.uid) {
-                        return Promise.resolve({ ...user, registeredBy: user.name });
-                    }
-                    return onValue(ref(db, `authUsers/${user.registeredById}`), (snapshot) => {
-                        const registeredByUser = snapshot.val();
-                        return {
-                            ...user,
-                            registeredBy: registeredByUser ? (registeredByUser.name || registeredByUser.email) : user.email
-                        };
-                    }, { onlyOnce: true }).then(snap => snap.val());
+                    return getAuthUserNameByUid(user.registeredById).then(registeredBy => ({
+                        ...user,
+                        registeredBy
+                    }));
                 });
 
                 Promise.all(promises).then(usersWithRegisteredBy => {
