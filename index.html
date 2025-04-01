@@ -263,7 +263,6 @@
         let currentReportType = 'daily';
         let currentAuthUser = null;
         let currentAuthUserName = null;
-        let isLoggingIn = false;
 
         function getMedsRef() {
             return currentUserId ? ref(db, `users/${currentUserId}/medications`) : ref(db, 'medications');
@@ -309,36 +308,24 @@
             });
         }
 
-        // Promessa para aguardar o estado de autenticação
-        function waitForAuthState() {
-            return new Promise((resolve) => {
-                const unsubscribe = onAuthStateChanged(auth, async (user) => {
-                    unsubscribe(); // Cancela o listener após a primeira execução
-                    if (user && !isLoggingIn) {
-                        log(`Usuário autenticado detectado: ${user.email}`);
-                        currentAuthUser = user;
-                        currentAuthUserName = await getAuthUserNameByUid(user.uid);
-                        log(`currentAuthUser definido como: ${currentAuthUser.email}`);
-                        loginScreen.style.display = 'none';
-                        appScreen.style.display = 'block';
-                        renderMainScreen();
-                        resolve(true);
-                    } else {
-                        log("Nenhum usuário autenticado detectado.");
-                        currentAuthUser = null;
-                        currentAuthUserName = null;
-                        loginScreen.style.display = 'block';
-                        appScreen.style.display = 'none';
-                        registerScreen.style.display = 'none';
-                        resolve(false);
-                    }
-                });
-            });
-        }
-
-        // Inicializar o estado de autenticação ao carregar a página
-        waitForAuthState().then((isAuthenticated) => {
-            log(`Estado inicial de autenticação resolvido: ${isAuthenticated ? 'Autenticado' : 'Não autenticado'}`);
+        // Listener persistente para estado de autenticação
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                log(`Usuário autenticado detectado: ${user.email}`);
+                currentAuthUser = user;
+                currentAuthUserName = await getAuthUserNameByUid(user.uid);
+                log(`currentAuthUser definido como: ${currentAuthUser.email}`);
+                loginScreen.style.display = 'none';
+                appScreen.style.display = 'block';
+                renderMainScreen();
+            } else {
+                log("Nenhum usuário autenticado detectado.");
+                currentAuthUser = null;
+                currentAuthUserName = null;
+                loginScreen.style.display = 'block';
+                appScreen.style.display = 'none';
+                registerScreen.style.display = 'none';
+            }
         });
 
         // Login
@@ -350,23 +337,17 @@
                 loginError.textContent = "Preencha e-mail e senha!";
                 return;
             }
-            isLoggingIn = true;
             signInWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
                     log(`Login bem-sucedido: ${userCredential.user.email}`);
                     loginError.textContent = '';
                     loginSuccess.textContent = "Login realizado com sucesso!";
-                    setTimeout(() => {
-                        loginSuccess.textContent = '';
-                        waitForAuthState().then(() => {
-                            isLoggingIn = false;
-                        });
-                    }, 3000);
+                    setTimeout(() => loginSuccess.textContent = '', 3000);
+                    // O listener onAuthStateChanged cuidará da transição
                 })
                 .catch((error) => {
                     loginError.textContent = `Erro ao fazer login: ${error.message}`;
                     log(`Erro ao fazer login: ${error.message}`);
-                    isLoggingIn = false;
                 });
         });
 
