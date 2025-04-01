@@ -300,13 +300,13 @@
             console.log(`[LOG ${new Date().toLocaleTimeString()}]: ${message}`);
         }
 
-        // Função para obter ou salvar o nome do usuário autenticado
+        // Função para obter o nome ou e-mail do usuário autenticado
         function getAuthUserName(email) {
             return new Promise((resolve) => {
                 onValue(authUsersRef, (snapshot) => {
                     const authUsers = snapshot.val() || {};
                     const user = Object.values(authUsers).find(u => u.email === email);
-                    resolve(user ? user.name : email);
+                    resolve(user ? user.name : email); // Retorna o nome ou o e-mail se o nome não existir
                 }, { onlyOnce: true });
             });
         }
@@ -323,7 +323,7 @@
             if (user && !isLoggingIn) {
                 log(`Usuário autenticado: ${user.email}`);
                 currentAuthUser = user;
-                currentAuthUserName = await getAuthUserName(user.email);
+                currentAuthUserName = await getAuthUserName(user.email); // Define como nome ou e-mail
                 loginScreen.style.display = 'none';
                 appScreen.style.display = 'block';
                 renderMainScreen();
@@ -400,10 +400,11 @@
                 .then((userCredential) => {
                     const user = userCredential.user;
                     log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
-                    // Salvar nome e e-mail no Realtime Database
+                    // Salvar nome, e-mail e quem cadastrou no Realtime Database
                     return set(ref(db, `authUsers/${user.uid}`), {
                         name: name,
-                        email: email
+                        email: email,
+                        registeredById: currentAuthUser ? currentAuthUser.uid : user.uid // Salva o UID de quem cadastrou ou o próprio UID se for o primeiro usuário
                     }).then(() => {
                         registerError.textContent = '';
                         registerSuccess.textContent = "Usuário cadastrado com sucesso! Faça login com o novo usuário.";
@@ -415,7 +416,6 @@
                             signOut(auth); // Forçar logout para garantir que o novo usuário faça login
                         }, 2000);
                     }).catch((error) => {
-                        // Se falhar ao salvar no Realtime Database, excluir o usuário criado no Authentication
                         registerError.textContent = "Erro ao salvar dados do usuário: Permissão negada ou falha no banco de dados.";
                         log(`Erro ao salvar no Realtime Database: ${error.message}`);
                         deleteUser(user).then(() => {
@@ -623,7 +623,7 @@
                                 const newLastTaken = utcDate.toISOString();
                                 update(ref(db, `users/${currentUserId}/medications/${key}`), { 
                                     lastTaken: newLastTaken,
-                                    history: med.history ? [...med.history, { taken: newLastTaken, notes: "", loggedBy: currentAuthUserName }] : [{ taken: newLastTaken, notes: "", loggedBy: currentAuthUserName }]
+                                    history: med.history ? [...med.history, { taken: newLastTaken, notes: "", loggedBy: currentAuthUserName || currentAuthUser.email }] : [{ taken: newLastTaken, notes: "", loggedBy: currentAuthUserName || currentAuthUser.email }]
                                 }).then(() => {
                                     e.target.value = '';
                                 }).catch((error) => {
@@ -649,7 +649,7 @@
                         const newLastTaken = utcDate.toISOString();
                         update(ref(db, `users/${currentUserId}/medications/${key}`), { 
                             lastTaken: newLastTaken,
-                            history: med.history ? [...med.history, { taken: newLastTaken, notes: "", loggedBy: currentAuthUserName }] : [{ taken: newLastTaken, notes: "", loggedBy: currentAuthUserName }]
+                            history: med.history ? [...med.history, { taken: newLastTaken, notes: "", loggedBy: currentAuthUserName || currentAuthUser.email }] : [{ taken: newLastTaken, notes: "", loggedBy: currentAuthUserName || currentAuthUser.email }]
                         }).then(() => {
                             document.getElementById(`taken-${key}`).value = '';
                         }).catch((error) => {
@@ -685,7 +685,7 @@
             push(usersRef, {
                 name: name,
                 note: "",
-                registeredBy: currentAuthUserName,
+                registeredBy: currentAuthUserName || currentAuthUser.email,
                 registeredById: currentAuthUser.uid
             }).then((newUserRef) => {
                 const userId = newUserRef.key;
@@ -1001,7 +1001,7 @@
                             const historyIndex = updatedHistory.findIndex(item => item.taken === currentTaken);
                             if (historyIndex !== -1) {
                                 const currentNotes = updatedHistory[historyIndex].notes || "";
-                                const currentLoggedBy = updatedHistory[historyIndex].loggedBy || currentAuthUserName;
+                                const currentLoggedBy = updatedHistory[historyIndex].loggedBy || (currentAuthUserName || currentAuthUser.email);
                                 updatedHistory[historyIndex] = { taken: newTaken, notes: currentNotes, loggedBy: currentLoggedBy };
                                 const isLastEntry = historyIndex === updatedHistory.length - 1;
                                 const updates = { history: updatedHistory };
@@ -1089,7 +1089,7 @@
                                 shouldInclude = takenLocal >= yearAgo;
                             }
                             if (shouldInclude) {
-                                allEntries.push({ key, med, taken: entry.taken, notes: entry.notes || "", loggedBy: entry.loggedBy || currentAuthUserName, index });
+                                allEntries.push({ key, med, taken: entry.taken, notes: entry.notes || "", loggedBy: entry.loggedBy || (currentAuthUserName || currentAuthUser.email), index });
                             }
                         });
                     }
@@ -1198,7 +1198,7 @@
                             const takenLocalDate = new Date(takenLocal);
                             takenLocalDate.setHours(0, 0, 0, 0);
                             if (takenLocalDate.getTime() === today.getTime()) {
-                                allEntries.push({ key, med, taken: entry.taken, notes: entry.notes || "", loggedBy: entry.loggedBy || currentAuthUserName, index });
+                                allEntries.push({ key, med, taken: entry.taken, notes: entry.notes || "", loggedBy: entry.loggedBy || (currentAuthUserName || currentAuthUser.email), index });
                             }
                         });
                     }
@@ -1230,7 +1230,7 @@
                     const onTime = index === 0 || diff <= 30 * 60 * 1000;
                     li.innerHTML = `
                         <div class="report-row">
-                            ${med.name} | Tomado: <span class="${onTime ? 'on-time' : 'late'}">${takenLocal.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                            ${med.name} | Tom featado: <span class="${onTime ? 'on-time' : 'late'}">${takenLocal.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                             | Esperado: ${index === 0 || !expectedLocal ? 'N/A' : expectedLocal.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
                             | Registrado por: ${loggedBy}
                             <div>
@@ -1295,8 +1295,9 @@
                 const authUsers = snapshot.val() || {};
                 const userArray = Object.entries(authUsers).map(([uid, user]) => ({
                     uid,
-                    name: user.name,
-                    email: user.email
+                    name: user.name || user.email, // Usa o nome ou e-mail se não houver nome
+                    email: user.email,
+                    registeredById: user.registeredById || uid // Assume que o próprio usuário se cadastrou se não houver registeredById
                 }));
 
                 if (userArray.length === 0) {
@@ -1304,16 +1305,32 @@
                     return;
                 }
 
-                userArray.sort((a, b) => a.name.localeCompare(b.name)); // Ordenar por nome
+                // Buscar o nome ou e-mail de quem cadastrou
+                const promises = userArray.map(user => {
+                    if (user.registeredById === user.uid) {
+                        return Promise.resolve({ ...user, registeredBy: user.name });
+                    }
+                    return onValue(ref(db, `authUsers/${user.registeredById}`), (snapshot) => {
+                        const registeredByUser = snapshot.val();
+                        return {
+                            ...user,
+                            registeredBy: registeredByUser ? (registeredByUser.name || registeredByUser.email) : user.email
+                        };
+                    }, { onlyOnce: true }).then(snap => snap.val());
+                });
 
-                userArray.forEach(({ uid, name, email }) => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `
-                        <div class="report-row">
-                            <span>${name} | E-mail: ${email} | UID: ${uid}</span>
-                        </div>
-                    `;
-                    reportList.appendChild(li);
+                Promise.all(promises).then(usersWithRegisteredBy => {
+                    usersWithRegisteredBy.sort((a, b) => a.name.localeCompare(b.name)); // Ordenar por nome
+
+                    usersWithRegisteredBy.forEach(({ name, email, registeredBy }) => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <div class="report-row">
+                                <span>${name} | E-mail: ${email} | Cadastrado por: ${registeredBy}</span>
+                            </div>
+                        `;
+                        reportList.appendChild(li);
+                    });
                 });
             }, { onlyOnce: true });
             log("Lista de usuários autenticados renderizada a partir de /authUsers.");
