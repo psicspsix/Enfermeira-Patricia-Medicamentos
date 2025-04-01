@@ -136,8 +136,8 @@
     <!-- Tela de Login -->
     <div id="loginScreen">
         <h1>Gerenciador de Medicamentos</h1>
-        <input type="email" id="emailInput" placeholder="E-mail" autocomplete="off">
-        <input type="password" id="passwordInput" placeholder="Senha" autocomplete="off">
+        <input type="email" id="emailInput" placeholder="E-mail" autocomplete="off" autocapitalize="none">
+        <input type="password" id="passwordInput" placeholder="Senha" autocomplete="new-password">
         <button id="loginButton">Entrar</button>
         <button id="registerButton" style="display: none;">Cadastrar</button>
         <button id="resetPasswordButton">Recuperar Senha</button>
@@ -150,7 +150,7 @@
         <h1>Cadastrar Novo Usuário</h1>
         <input type="text" id="registerNameInput" placeholder="Nome do Usuário" autocomplete="off">
         <input type="email" id="registerEmailInput" placeholder="E-mail" autocomplete="off">
-        <input type="password" id="registerPasswordInput" placeholder="Senha" autocomplete="off">
+        <input type="password" id="registerPasswordInput" placeholder="Senha" autocomplete="new-password">
         <button id="saveRegisterButton">Salvar</button>
         <button id="backFromRegisterButton">Voltar</button>
         <div id="registerError"></div>
@@ -319,7 +319,7 @@
                 log(`currentAuthUser definido como: ${currentAuthUser.email}`);
                 loginScreen.style.display = 'none';
                 appScreen.style.display = 'block';
-                registerButton.style.display = 'inline-block';
+                registerButton.style.display = 'none'; // Esconde "Cadastrar" na tela principal
                 renderMainScreen();
             } else if (!user) {
                 log("Nenhum usuário autenticado detectado.");
@@ -328,12 +328,13 @@
                 loginScreen.style.display = 'block';
                 appScreen.style.display = 'none';
                 registerScreen.style.display = 'none';
-                registerButton.style.display = 'none';
+                registerButton.style.display = 'inline-block'; // Mostra "Cadastrar" na tela de login
             }
         });
 
         // Login
-        loginButton.addEventListener('click', () => {
+        loginButton.addEventListener('click', (e) => {
+            e.preventDefault(); // Impede comportamento padrão do formulário
             const email = emailInput.value.trim();
             const password = passwordInput.value.trim();
             if (!email || !password) {
@@ -346,11 +347,11 @@
                     log(`Login bem-sucedido: ${userCredential.user.email}`);
                     loginError.textContent = '';
                     loginSuccess.textContent = "Login realizado com sucesso!";
-                    registerButton.style.display = 'inline-block';
                     loginTimeout = setTimeout(() => {
                         loginSuccess.textContent = '';
                         loginScreen.style.display = 'none';
                         appScreen.style.display = 'block';
+                        registerButton.style.display = 'none'; // Esconde "Cadastrar" após login
                         renderMainScreen();
                         isLoggingIn = false;
                     }, 3000);
@@ -365,25 +366,22 @@
         // Mostrar tela de cadastro com verificação de autenticação
         registerButton.addEventListener('click', () => {
             log(`Botão 'Cadastrar' clicado. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}`);
-            if (!currentAuthUser) {
-                loginError.textContent = "Nenhum usuário autenticado! Faça login novamente.";
-                log("Tentativa de acessar cadastro sem usuário autenticado.");
-                loginScreen.style.display = 'block';
+            if (currentAuthUser) {
+                // Usuário já está logado, vai direto para a tela de cadastro
+                loginScreen.style.display = 'none';
                 appScreen.style.display = 'none';
-                registerScreen.style.display = 'none';
-                return;
+                registerScreen.style.display = 'block';
+                registerNameInput.value = '';
+                registerEmailInput.value = '';
+                registerPasswordInput.value = '';
+                registerError.textContent = '';
+                registerSuccess.textContent = '';
+                log("Tela de cadastro exibida com usuário autenticado: " + currentAuthUser.email);
+            } else {
+                // Usuário não está logado, exibe mensagem e mantém na tela de login
+                loginError.textContent = "Faça login primeiro para cadastrar um novo usuário!";
+                log("Tentativa de acessar cadastro sem usuário autenticado.");
             }
-            if (loginTimeout) clearTimeout(loginTimeout);
-            loginScreen.style.display = 'none';
-            appScreen.style.display = 'none';
-            registerScreen.style.display = 'block';
-            registerNameInput.value = '';
-            registerEmailInput.value = '';
-            registerPasswordInput.value = '';
-            registerError.textContent = '';
-            registerSuccess.textContent = '';
-            isLoggingIn = false;
-            log("Tela de cadastro exibida com usuário autenticado: " + currentAuthUser.email);
         });
 
         // Salvar novo usuário autenticado
@@ -414,11 +412,10 @@
                 .then((userCredential) => {
                     const user = userCredential.user;
                     log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
-                    // Salvar nome, e-mail e quem cadastrou no Realtime Database
                     return set(ref(db, `authUsers/${user.uid}`), {
                         name: name,
                         email: email,
-                        registeredById: currentAuthUser.uid // Sempre o UID do usuário autenticado
+                        registeredById: currentAuthUser.uid
                     }).then(() => {
                         registerError.textContent = '';
                         registerSuccess.textContent = "Usuário cadastrado com sucesso! Faça login com o novo usuário.";
@@ -426,7 +423,6 @@
                             registerSuccess.textContent = '';
                             registerScreen.style.display = 'none';
                             loginScreen.style.display = 'block';
-                            registerButton.style.display = 'none';
                             signOut(auth).then(() => {
                                 log("Logout realizado após cadastro bem-sucedido.");
                             }).catch((error) => {
@@ -434,7 +430,7 @@
                             });
                         }, 2000);
                     }).catch((error) => {
-                        registerError.textContent = "Erro ao salvar dados do usuário: Permissão negada ou falha no banco de dados.";
+                        registerError.textContent = "Erro ao salvar dados do usuário: " + error.message;
                         log(`Erro ao salvar no Realtime Database: ${error.message}`);
                         deleteUser(user).then(() => {
                             log(`Usuário ${email} removido do Authentication devido a falha no Realtime Database.`);
@@ -451,26 +447,6 @@
                     }
                     log(`Erro ao cadastrar usuário: ${error.message}`);
                 });
-        });
-
-        // Adicionar funcionalidade de "Enter" na tela de cadastro
-        registerNameInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                saveRegisterButton.click();
-            }
-        });
-        registerEmailInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                saveRegisterButton.click();
-            }
-        });
-        registerPasswordInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                saveRegisterButton.click();
-            }
         });
 
         backFromRegisterButton.addEventListener('click', () => {
@@ -1307,15 +1283,15 @@
 
         function renderUserRegistryReport() {
             const reportList = document.getElementById('reportList');
-            reportList.innerHTML = ''; // Limpar lista antes de renderizar
+            reportList.innerHTML = '';
 
             onValue(authUsersRef, (snapshot) => {
                 const authUsers = snapshot.val() || {};
                 const userArray = Object.entries(authUsers).map(([uid, user]) => ({
                     uid,
-                    name: user.name || user.email, // Usa o nome ou e-mail se não houver nome
+                    name: user.name || user.email,
                     email: user.email,
-                    registeredById: user.registeredById || uid // Se não houver registeredById, assume auto-registro
+                    registeredById: user.registeredById || uid
                 }));
 
                 if (userArray.length === 0) {
@@ -1323,7 +1299,6 @@
                     return;
                 }
 
-                // Buscar o nome ou e-mail de quem cadastrou
                 const promises = userArray.map(user => {
                     return getAuthUserNameByUid(user.registeredById).then(registeredBy => ({
                         ...user,
@@ -1332,8 +1307,7 @@
                 });
 
                 Promise.all(promises).then(usersWithRegisteredBy => {
-                    usersWithRegisteredBy.sort((a, b) => a.name.localeCompare(b.name)); // Ordenar por nome
-
+                    usersWithRegisteredBy.sort((a, b) => a.name.localeCompare(b.name));
                     usersWithRegisteredBy.forEach(({ name, email, registeredBy }) => {
                         const li = document.createElement('li');
                         li.innerHTML = `
