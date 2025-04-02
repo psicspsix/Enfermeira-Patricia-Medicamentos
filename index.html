@@ -309,15 +309,18 @@
         }
 
         // Listener persistente para estado de autenticação
+        let isInitialLoad = true; // Flag para controle do carregamento inicial
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 log(`Usuário autenticado detectado: ${user.email}`);
                 currentAuthUser = user;
                 currentAuthUserName = await getAuthUserNameByUid(user.uid);
                 log(`currentAuthUser definido como: ${currentAuthUser.email}`);
-                loginScreen.style.display = 'none';
-                appScreen.style.display = 'block';
-                renderMainScreen();
+                if (!isInitialLoad) { // Só redireciona após login explícito, não no carregamento inicial
+                    loginScreen.style.display = 'none';
+                    appScreen.style.display = 'block';
+                    renderMainScreen();
+                }
             } else {
                 log("Nenhum usuário autenticado detectado.");
                 currentAuthUser = null;
@@ -326,6 +329,7 @@
                 appScreen.style.display = 'none';
                 registerScreen.style.display = 'none';
             }
+            isInitialLoad = false; // Após o primeiro disparo, desativa a flag
         });
 
         // Login
@@ -343,7 +347,7 @@
                     loginError.textContent = '';
                     loginSuccess.textContent = "Login realizado com sucesso!";
                     setTimeout(() => loginSuccess.textContent = '', 3000);
-                    // O listener onAuthStateChanged cuidará da transição
+                    // O onAuthStateChanged cuidará da transição
                 })
                 .catch((error) => {
                     loginError.textContent = `Erro ao fazer login: ${error.message}`;
@@ -404,17 +408,12 @@
                         registeredById: currentAuthUser.uid
                     }).then(() => {
                         registerError.textContent = '';
-                        registerSuccess.textContent = "Usuário cadastrado com sucesso! Faça login com o novo usuário.";
+                        registerSuccess.textContent = `Usuário ${name} cadastrado com sucesso! Faça logout e login com o novo usuário (${email}).`;
                         setTimeout(() => {
                             registerSuccess.textContent = '';
                             registerScreen.style.display = 'none';
-                            loginScreen.style.display = 'block';
-                            signOut(auth).then(() => {
-                                log("Logout realizado após cadastro bem-sucedido.");
-                            }).catch((error) => {
-                                log(`Erro ao fazer logout após cadastro: ${error.message}`);
-                            });
-                        }, 2000);
+                            appScreen.style.display = 'block'; // Volta para a tela principal sem logout
+                        }, 3000);
                     }).catch((error) => {
                         registerError.textContent = "Erro ao salvar dados do usuário: " + error.message;
                         log(`Erro ao salvar no Realtime Database: ${error.message}`);
