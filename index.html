@@ -263,7 +263,7 @@
         let currentReportType = 'daily';
         let currentAuthUser = null;
         let currentAuthUserName = null;
-        let loggedInUserName = null; // Nova variável para armazenar o nome ou e-mail do usuário logado
+        let loggedInUserName = null;
         let isRegisterClicked = false;
 
         function getMedsRef() {
@@ -318,24 +318,24 @@
             });
         }
 
-// Listener persistente para estado de autenticação
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        log(`Usuário autenticado detectado: ${user.email}`);
-        currentAuthUser = user;
-        currentAuthUserName = await getAuthUserNameByUid(user.uid); // Mantemos como fallback, mas não usaremos diretamente
-        loggedInUserName = user.email; // Define loggedInUserName como o e-mail do usuário autenticado
-        log(`currentAuthUser definido como: ${currentAuthUser.email}, loggedInUserName: ${loggedInUserName}`);
-    } else {
-        log("Nenhum usuário autenticado detectado.");
-        currentAuthUser = null;
-        currentAuthUserName = null;
-        loggedInUserName = null;
-        loginScreen.style.display = 'block';
-        appScreen.style.display = 'none';
-        registerScreen.style.display = 'none';
-    }
-});
+        // Listener persistente para estado de autenticação
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                log(`Usuário autenticado detectado: ${user.email}`);
+                currentAuthUser = user;
+                currentAuthUserName = await getAuthUserNameByUid(user.uid); // Mantido como fallback
+                loggedInUserName = user.email; // Usa o e-mail do usuário autenticado diretamente
+                log(`currentAuthUser definido como: ${currentAuthUser.email}, loggedInUserName: ${loggedInUserName}`);
+            } else {
+                log("Nenhum usuário autenticado detectado.");
+                currentAuthUser = null;
+                currentAuthUserName = null;
+                loggedInUserName = null;
+                loginScreen.style.display = 'block';
+                appScreen.style.display = 'none';
+                registerScreen.style.display = 'none';
+            }
+        });
 
         // Forçar logout ao carregar a página
         document.addEventListener('DOMContentLoaded', () => {
@@ -402,94 +402,92 @@ onAuthStateChanged(auth, async (user) => {
             }
         });
 
+        // Salvar novo usuário autenticado sem alterar o usuário logado
+        saveRegisterButton.addEventListener('click', () => {
+            const name = registerNameInput.value.trim();
+            const email = registerEmailInput.value.trim();
+            const password = registerPasswordInput.value.trim();
 
+            log(`Tentativa de salvar novo usuário: ${email}. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}, loggedInUserName: ${loggedInUserName}`);
 
-// Salvar novo usuário autenticado sem alterar o usuário logado
-saveRegisterButton.addEventListener('click', () => {
-    const name = registerNameInput.value.trim();
-    const email = registerEmailInput.value.trim();
-    const password = registerPasswordInput.value.trim();
+            if (!name || !email || !password) {
+                registerError.textContent = "Preencha todos os campos!";
+                return;
+            }
+            if (!isValidEmail(email)) {
+                registerError.textContent = "Digite um e-mail válido (ex.: usuario@dominio.com)!";
+                return;
+            }
+            if (password.length < 6) {
+                registerError.textContent = "A senha deve ter pelo menos 6 caracteres!";
+                return;
+            }
+            if (!currentAuthUser || !loggedInUserName) {
+                registerError.textContent = "Nenhum usuário autenticado! Faça login novamente.";
+                log("Tentativa de cadastro sem usuário autenticado.");
+                registerScreen.style.display = 'none';
+                loginScreen.style.display = 'block';
+                return;
+            }
 
-    log(`Tentativa de salvar novo usuário: ${email}. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}, loggedInUserName: ${loggedInUserName}`);
+            // Criar uma instância de autenticação secundária para evitar afetar o auth principal
+            const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+            const secondaryAuth = getAuth(secondaryApp);
 
-    if (!name || !email || !password) {
-        registerError.textContent = "Preencha todos os campos!";
-        return;
-    }
-    if (!isValidEmail(email)) {
-        registerError.textContent = "Digite um e-mail válido (ex.: usuario@dominio.com)!";
-        return;
-    }
-    if (password.length < 6) {
-        registerError.textContent = "A senha deve ter pelo menos 6 caracteres!";
-        return;
-    }
-    if (!currentAuthUser || !loggedInUserName) {
-        registerError.textContent = "Nenhum usuário autenticado! Faça login novamente.";
-        log("Tentativa de cadastro sem usuário autenticado.");
-        registerScreen.style.display = 'none';
-        loginScreen.style.display = 'block';
-        return;
-    }
+            createUserWithEmailAndPassword(secondaryAuth, email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
 
-    // Criar uma instância de autenticação secundária para evitar afetar o auth principal
-    const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
-    const secondaryAuth = getAuth(secondaryApp);
-
-    createUserWithEmailAndPassword(secondaryAuth, email, password)
-        .then((userCredential) => {
-            const user = userCredential.user;
-            log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
-
-            // Salvar os dados no banco usando o UID do novo usuário
-            return set(ref(db, `authUsers/${user.uid}`), {
-                name: name,
-                email: email,
-                registeredById: currentAuthUser.uid // Mantemos o UID como referência
-            }).then(() => {
-                // Após criar o usuário, atualizamos o registro com o nome do usuário logado
-                return update(ref(db, `authUsers/${user.uid}`), {
-                    registeredBy: loggedInUserName // Usa o e-mail do usuário autenticado
-                }).then(() => {
-                    registerError.textContent = '';
-                    registerSuccess.textContent = `Usuário ${name} cadastrado com sucesso! Use as credenciais (${email}) para fazer login.`;
-                    
-                    // Deslogar o novo usuário da instância secundária
-                    signOut(secondaryAuth).then(() => {
-                        log(`Sessão do novo usuário ${email} encerrada na instância secundária.`);
-                        setTimeout(() => {
-                            registerSuccess.textContent = '';
-                            registerScreen.style.display = 'none';
-                            appScreen.style.display = 'block'; // Volta para a tela principal
-                            isRegisterClicked = false;
-                        }, 3000);
+                    // Salvar os dados no banco usando o UID do novo usuário
+                    return set(ref(db, `authUsers/${user.uid}`), {
+                        name: name,
+                        email: email,
+                        registeredById: currentAuthUser.uid // Mantemos o UID como referência
+                    }).then(() => {
+                        // Após criar o usuário, atualizamos o registro com o e-mail do usuário logado
+                        return update(ref(db, `authUsers/${user.uid}`), {
+                            registeredBy: loggedInUserName // Usa o e-mail do usuário autenticado
+                        }).then(() => {
+                            registerError.textContent = '';
+                            registerSuccess.textContent = `Usuário ${name} cadastrado com sucesso! Use as credenciais (${email}) para fazer login.`;
+                            
+                            // Deslogar o novo usuário da instância secundária
+                            signOut(secondaryAuth).then(() => {
+                                log(`Sessão do novo usuário ${email} encerrada na instância secundária.`);
+                                setTimeout(() => {
+                                    registerSuccess.textContent = '';
+                                    registerScreen.style.display = 'none';
+                                    appScreen.style.display = 'block';
+                                    isRegisterClicked = false;
+                                }, 3000);
+                            }).catch((error) => {
+                                log(`Erro ao deslogar da instância secundária: ${error.message}`);
+                            });
+                        });
                     }).catch((error) => {
-                        log(`Erro ao deslogar da instância secundária: ${error.message}`);
+                        registerError.textContent = "Erro ao salvar dados do usuário: " + error.message;
+                        log(`Erro ao salvar no Realtime Database: ${error.message}`);
+                    });
+                })
+                .catch((error) => {
+                    if (error.code === 'auth/email-already-in-use') {
+                        registerError.textContent = "Este e-mail já está em uso. Tente outro ou faça login.";
+                    } else if (error.code === 'auth/invalid-email') {
+                        registerError.textContent = "E-mail inválido! Use o formato correto (ex.: usuario@dominio.com).";
+                    } else {
+                        registerError.textContent = `Erro ao cadastrar: ${error.message}`;
+                    }
+                    log(`Erro ao cadastrar usuário: ${error.message}`);
+                })
+                .finally(() => {
+                    // Evitar erro "delete is not a function"
+                    secondaryApp.delete().catch((error) => {
+                        log(`Erro ao destruir instância secundária: ${error.message}`);
                     });
                 });
-            }).catch((error) => {
-                registerError.textContent = "Erro ao salvar dados do usuário: " + error.message;
-                log(`Erro ao salvar no Realtime Database: ${error.message}`);
-            });
-        })
-        .catch((error) => {
-            if (error.code === 'auth/email-already-in-use') {
-                registerError.textContent = "Este e-mail já está em uso. Tente outro ou faça login.";
-            } else if (error.code === 'auth/invalid-email') {
-                registerError.textContent = "E-mail inválido! Use o formato correto (ex.: usuario@dominio.com).";
-            } else {
-                registerError.textContent = `Erro ao cadastrar: ${error.message}`;
-            }
-            log(`Erro ao cadastrar usuário: ${error.message}`);
-        })
-        .finally(() => {
-            // Evitar erro "delete is not a function" ao destruir a instância secundária
-            secondaryApp.delete().catch((error) => {
-                log(`Erro ao destruir instância secundária: ${error.message}`);
-            });
         });
-});
-        
+
         backFromRegisterButton.addEventListener('click', () => {
             registerScreen.style.display = 'none';
             loginScreen.style.display = 'block';
@@ -1348,7 +1346,7 @@ saveRegisterButton.addEventListener('click', () => {
                     uid,
                     name: user.name || user.email,
                     email: user.email,
-                    registeredBy: user.registeredBy || "Usuário Desconhecido" // Usa o campo registeredBy diretamente
+                    registeredBy: user.registeredBy || "Usuário Desconhecido"
                 }));
 
                 log(`Array de usuários para o relatório: ${JSON.stringify(userArray)}`);
