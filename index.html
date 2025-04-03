@@ -309,18 +309,12 @@
         }
 
         // Listener persistente para estado de autenticação
-        let isInitialLoad = true; // Flag para controle do carregamento inicial
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 log(`Usuário autenticado detectado: ${user.email}`);
                 currentAuthUser = user;
                 currentAuthUserName = await getAuthUserNameByUid(user.uid);
                 log(`currentAuthUser definido como: ${currentAuthUser.email}`);
-                if (!isInitialLoad) { // Só redireciona após login explícito, não no carregamento inicial
-                    loginScreen.style.display = 'none';
-                    appScreen.style.display = 'block';
-                    renderMainScreen();
-                }
             } else {
                 log("Nenhum usuário autenticado detectado.");
                 currentAuthUser = null;
@@ -329,7 +323,18 @@
                 appScreen.style.display = 'none';
                 registerScreen.style.display = 'none';
             }
-            isInitialLoad = false; // Após o primeiro disparo, desativa a flag
+        });
+
+        // Forçar logout ao carregar a página
+        document.addEventListener('DOMContentLoaded', () => {
+            signOut(auth).then(() => {
+                log("Sessão encerrada ao carregar a página.");
+                loginScreen.style.display = 'block';
+                appScreen.style.display = 'none';
+                registerScreen.style.display = 'none';
+            }).catch((error) => {
+                log(`Erro ao forçar logout inicial: ${error.message}`);
+            });
         });
 
         // Login
@@ -346,8 +351,12 @@
                     log(`Login bem-sucedido: ${userCredential.user.email}`);
                     loginError.textContent = '';
                     loginSuccess.textContent = "Login realizado com sucesso!";
-                    setTimeout(() => loginSuccess.textContent = '', 3000);
-                    // O onAuthStateChanged cuidará da transição
+                    setTimeout(() => {
+                        loginSuccess.textContent = '';
+                        loginScreen.style.display = 'none';
+                        appScreen.style.display = 'block';
+                        renderMainScreen();
+                    }, 2000);
                 })
                 .catch((error) => {
                     loginError.textContent = `Erro ao fazer login: ${error.message}`;
@@ -355,23 +364,16 @@
                 });
         });
 
-        // Mostrar tela de cadastro com verificação de autenticação
+        // Mostrar tela de cadastro sem necessidade de autenticação prévia
         registerButton.addEventListener('click', () => {
-            log(`Botão 'Cadastrar' clicado. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}`);
-            if (currentAuthUser) {
-                loginScreen.style.display = 'none';
-                appScreen.style.display = 'none';
-                registerScreen.style.display = 'block';
-                registerNameInput.value = '';
-                registerEmailInput.value = '';
-                registerPasswordInput.value = '';
-                registerError.textContent = '';
-                registerSuccess.textContent = '';
-                log("Tela de cadastro exibida com usuário autenticado: " + currentAuthUser.email);
-            } else {
-                loginError.textContent = "Faça login primeiro para cadastrar um novo usuário!";
-                log("Tentativa de acessar cadastro sem usuário autenticado.");
-            }
+            log("Botão 'Cadastrar' clicado.");
+            loginScreen.style.display = 'none';
+            registerScreen.style.display = 'block';
+            registerNameInput.value = '';
+            registerEmailInput.value = '';
+            registerPasswordInput.value = '';
+            registerError.textContent = '';
+            registerSuccess.textContent = '';
         });
 
         // Salvar novo usuário autenticado
@@ -380,7 +382,7 @@
             const email = registerEmailInput.value.trim();
             const password = registerPasswordInput.value.trim();
 
-            log(`Tentativa de salvar novo usuário. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}`);
+            log(`Tentativa de salvar novo usuário: ${email}`);
 
             if (!name || !email || !password) {
                 registerError.textContent = "Preencha todos os campos!";
@@ -388,13 +390,6 @@
             }
             if (password.length < 6) {
                 registerError.textContent = "A senha deve ter pelo menos 6 caracteres!";
-                return;
-            }
-            if (!currentAuthUser) {
-                registerError.textContent = "Nenhum usuário autenticado! Faça login novamente.";
-                log("Tentativa de cadastro sem usuário autenticado.");
-                registerScreen.style.display = 'none';
-                loginScreen.style.display = 'block';
                 return;
             }
 
@@ -405,14 +400,14 @@
                     return set(ref(db, `authUsers/${user.uid}`), {
                         name: name,
                         email: email,
-                        registeredById: currentAuthUser.uid
+                        registeredById: user.uid // Auto-registro
                     }).then(() => {
                         registerError.textContent = '';
-                        registerSuccess.textContent = `Usuário ${name} cadastrado com sucesso! Faça logout e login com o novo usuário (${email}).`;
+                        registerSuccess.textContent = `Usuário ${name} cadastrado com sucesso! Use suas credenciais para fazer login.`;
                         setTimeout(() => {
                             registerSuccess.textContent = '';
                             registerScreen.style.display = 'none';
-                            appScreen.style.display = 'block'; // Volta para a tela principal sem logout
+                            loginScreen.style.display = 'block';
                         }, 3000);
                     }).catch((error) => {
                         registerError.textContent = "Erro ao salvar dados do usuário: " + error.message;
@@ -436,11 +431,7 @@
 
         backFromRegisterButton.addEventListener('click', () => {
             registerScreen.style.display = 'none';
-            if (currentAuthUser) {
-                appScreen.style.display = 'block';
-            } else {
-                loginScreen.style.display = 'block';
-            }
+            loginScreen.style.display = 'block';
         });
 
         // Recuperação de senha
@@ -469,7 +460,11 @@
                     log("Logout realizado com sucesso.");
                     loginError.textContent = '';
                     loginSuccess.textContent = "Logout realizado com sucesso!";
-                    setTimeout(() => loginSuccess.textContent = '', 2000);
+                    setTimeout(() => {
+                        loginSuccess.textContent = '';
+                        appScreen.style.display = 'none';
+                        loginScreen.style.display = 'block';
+                    }, 2000);
                 })
                 .catch((error) => {
                     loginError.textContent = `Erro ao fazer logout: ${error.message}`;
@@ -560,6 +555,11 @@
         });
 
         function renderMainScreen() {
+            if (!currentAuthUser) {
+                appScreen.style.display = 'none';
+                loginScreen.style.display = 'block';
+                return;
+            }
             const medsRef = getMedsRef();
             onValue(medsRef, (snapshot) => {
                 const meds = snapshot.val() || {};
@@ -652,13 +652,13 @@
                 return;
             }
 
-            if (!auth.currentUser) {
+            if (!currentAuthUser) {
                 document.getElementById('userError').textContent = "Usuário não autenticado! Faça login novamente.";
                 log("Tentativa de adicionar paciente sem autenticação.");
                 return;
             }
 
-            log("Usuário autenticado: " + auth.currentUser.email + ". Tentando adicionar paciente: " + name);
+            log("Usuário autenticado: " + currentAuthUser.email + ". Tentando adicionar paciente: " + name);
 
             log("Executando push para /users...");
             push(usersRef, {
@@ -683,8 +683,6 @@
             }).catch((error) => {
                 log("Erro durante a operação no Firebase: " + error.message);
                 document.getElementById('userError').textContent = "Erro ao cadastrar paciente: " + error.message;
-            }).finally(() => {
-                log("Fim da execução de addUser.");
             });
         }
 
