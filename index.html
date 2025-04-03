@@ -263,7 +263,7 @@
         let currentReportType = 'daily';
         let currentAuthUser = null;
         let currentAuthUserName = null;
-        let isRegisterClicked = false; // Nova variável para rastrear clique em "Cadastrar"
+        let isRegisterClicked = false;
 
         function getMedsRef() {
             return currentUserId ? ref(db, `users/${currentUserId}/medications`) : ref(db, 'medications');
@@ -316,7 +316,6 @@
                 currentAuthUser = user;
                 currentAuthUserName = await getAuthUserNameByUid(user.uid);
                 log(`currentAuthUser definido como: ${currentAuthUser.email}`);
-                // Não exibir appScreen imediatamente aqui, deixar o loginButton controlar
             } else {
                 log("Nenhum usuário autenticado detectado.");
                 currentAuthUser = null;
@@ -353,15 +352,14 @@
                     log(`Login bem-sucedido: ${userCredential.user.email}`);
                     loginError.textContent = '';
                     loginSuccess.textContent = "Login realizado com sucesso!";
-                    // Adicionar atraso de 3 segundos antes de entrar no appScreen
                     setTimeout(() => {
-                        if (!isRegisterClicked) { // Só entra no appScreen se "Cadastrar" não foi clicado
+                        if (!isRegisterClicked) {
                             loginSuccess.textContent = '';
                             loginScreen.style.display = 'none';
                             appScreen.style.display = 'block';
                             renderMainScreen();
                         }
-                    }, 3000); // 3 segundos de espera
+                    }, 3000);
                 })
                 .catch((error) => {
                     loginError.textContent = `Erro ao fazer login: ${error.message}`;
@@ -373,7 +371,7 @@
         registerButton.addEventListener('click', () => {
             log(`Botão 'Cadastrar' clicado. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}`);
             if (currentAuthUser) {
-                isRegisterClicked = true; // Marcar que "Cadastrar" foi clicado
+                isRegisterClicked = true;
                 loginScreen.style.display = 'none';
                 appScreen.style.display = 'none';
                 registerScreen.style.display = 'block';
@@ -413,7 +411,7 @@
                 return;
             }
 
-            const newAuth = getAuth(app); // Criar uma instância separada para evitar login automático
+            const newAuth = getAuth(app);
             createUserWithEmailAndPassword(newAuth, email, password)
                 .then((userCredential) => {
                     const user = userCredential.user;
@@ -421,7 +419,7 @@
                     return set(ref(db, `authUsers/${user.uid}`), {
                         name: name,
                         email: email,
-                        registeredById: currentAuthUser.uid
+                        registeredById: currentAuthUser.uid // UID do usuário criador
                     }).then(() => {
                         registerError.textContent = '';
                         registerSuccess.textContent = `Usuário ${name} cadastrado com sucesso! Use as credenciais (${email}) para fazer login.`;
@@ -431,7 +429,7 @@
                                 registerSuccess.textContent = '';
                                 registerScreen.style.display = 'none';
                                 loginScreen.style.display = 'block';
-                                isRegisterClicked = false; // Resetar a flag após voltar à tela de login
+                                isRegisterClicked = false;
                             }, 3000);
                         });
                     }).catch((error) => {
@@ -452,7 +450,7 @@
         backFromRegisterButton.addEventListener('click', () => {
             registerScreen.style.display = 'none';
             loginScreen.style.display = 'block';
-            isRegisterClicked = false; // Resetar a flag ao voltar manualmente
+            isRegisterClicked = false;
             log("Voltando da tela de cadastro para a tela de login.");
         });
 
@@ -1296,7 +1294,7 @@
                     uid,
                     name: user.name || user.email,
                     email: user.email,
-                    registeredById: user.registeredById || uid
+                    registeredById: user.registeredById || uid // Se não houver registeredById, assume o próprio UID (para usuários iniciais)
                 }));
 
                 if (userArray.length === 0) {
@@ -1307,7 +1305,7 @@
                 const promises = userArray.map(user => {
                     return getAuthUserNameByUid(user.registeredById).then(registeredBy => ({
                         ...user,
-                        registeredBy
+                        registeredBy: registeredBy // Nome ou e-mail do usuário que cadastrou
                     }));
                 });
 
