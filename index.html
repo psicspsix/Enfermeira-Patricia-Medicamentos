@@ -364,16 +364,23 @@
                 });
         });
 
-        // Mostrar tela de cadastro sem necessidade de autenticação prévia
+        // Mostrar tela de cadastro apenas se autenticado
         registerButton.addEventListener('click', () => {
-            log("Botão 'Cadastrar' clicado.");
-            loginScreen.style.display = 'none';
-            registerScreen.style.display = 'block';
-            registerNameInput.value = '';
-            registerEmailInput.value = '';
-            registerPasswordInput.value = '';
-            registerError.textContent = '';
-            registerSuccess.textContent = '';
+            log(`Botão 'Cadastrar' clicado. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}`);
+            if (currentAuthUser) {
+                loginScreen.style.display = 'none';
+                appScreen.style.display = 'none';
+                registerScreen.style.display = 'block';
+                registerNameInput.value = '';
+                registerEmailInput.value = '';
+                registerPasswordInput.value = '';
+                registerError.textContent = '';
+                registerSuccess.textContent = '';
+                log("Tela de cadastro exibida para usuário autenticado: " + currentAuthUser.email);
+            } else {
+                loginError.textContent = "Faça login primeiro para cadastrar um novo usuário!";
+                log("Tentativa de acessar cadastro sem usuário autenticado.");
+            }
         });
 
         // Salvar novo usuário autenticado
@@ -382,7 +389,7 @@
             const email = registerEmailInput.value.trim();
             const password = registerPasswordInput.value.trim();
 
-            log(`Tentativa de salvar novo usuário: ${email}`);
+            log(`Tentativa de salvar novo usuário: ${email}. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}`);
 
             if (!name || !email || !password) {
                 registerError.textContent = "Preencha todos os campos!";
@@ -390,6 +397,13 @@
             }
             if (password.length < 6) {
                 registerError.textContent = "A senha deve ter pelo menos 6 caracteres!";
+                return;
+            }
+            if (!currentAuthUser) {
+                registerError.textContent = "Nenhum usuário autenticado! Faça login novamente.";
+                log("Tentativa de cadastro sem usuário autenticado.");
+                registerScreen.style.display = 'none';
+                loginScreen.style.display = 'block';
                 return;
             }
 
@@ -400,14 +414,14 @@
                     return set(ref(db, `authUsers/${user.uid}`), {
                         name: name,
                         email: email,
-                        registeredById: user.uid // Auto-registro
+                        registeredById: currentAuthUser.uid // Usuário autenticado atual
                     }).then(() => {
                         registerError.textContent = '';
-                        registerSuccess.textContent = `Usuário ${name} cadastrado com sucesso! Use suas credenciais para fazer login.`;
+                        registerSuccess.textContent = `Usuário ${name} cadastrado com sucesso! Use as credenciais (${email}) para fazer login.`;
                         setTimeout(() => {
                             registerSuccess.textContent = '';
                             registerScreen.style.display = 'none';
-                            loginScreen.style.display = 'block';
+                            appScreen.style.display = 'block';
                         }, 3000);
                     }).catch((error) => {
                         registerError.textContent = "Erro ao salvar dados do usuário: " + error.message;
@@ -431,7 +445,7 @@
 
         backFromRegisterButton.addEventListener('click', () => {
             registerScreen.style.display = 'none';
-            loginScreen.style.display = 'block';
+            appScreen.style.display = 'block';
         });
 
         // Recuperação de senha
