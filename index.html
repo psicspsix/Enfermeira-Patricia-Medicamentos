@@ -299,12 +299,20 @@
             console.log(`[LOG ${new Date().toLocaleTimeString()}]: ${message}`);
         }
 
+        // Função para validar e-mail
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
         // Função para obter o nome ou e-mail do usuário autenticado por UID
         function getAuthUserNameByUid(uid) {
             return new Promise((resolve) => {
                 onValue(ref(db, `authUsers/${uid}`), (snapshot) => {
                     const user = snapshot.val();
-                    resolve(user ? (user.name || user.email) : "Usuário Desconhecido");
+                    const name = user ? (user.name || user.email) : "Usuário Desconhecido";
+                    log(`Resolvendo UID ${uid} para nome: ${name}`);
+                    resolve(name);
                 }, { onlyOnce: true });
             });
         }
@@ -345,6 +353,10 @@
             const password = passwordInput.value.trim();
             if (!email || !password) {
                 loginError.textContent = "Preencha e-mail e senha!";
+                return;
+            }
+            if (!isValidEmail(email)) {
+                loginError.textContent = "Digite um e-mail válido (ex.: usuario@dominio.com)!";
                 return;
             }
             signInWithEmailAndPassword(auth, email, password)
@@ -399,6 +411,10 @@
                 registerError.textContent = "Preencha todos os campos!";
                 return;
             }
+            if (!isValidEmail(email)) {
+                registerError.textContent = "Digite um e-mail válido (ex.: usuario@dominio.com)!";
+                return;
+            }
             if (password.length < 6) {
                 registerError.textContent = "A senha deve ter pelo menos 6 caracteres!";
                 return;
@@ -449,6 +465,8 @@
                 .catch((error) => {
                     if (error.code === 'auth/email-already-in-use') {
                         registerError.textContent = "Este e-mail já está em uso. Tente outro ou faça login.";
+                    } else if (error.code === 'auth/invalid-email') {
+                        registerError.textContent = "E-mail inválido! Use o formato correto (ex.: usuario@dominio.com).";
                     } else {
                         registerError.textContent = `Erro ao cadastrar: ${error.message}`;
                     }
@@ -476,6 +494,10 @@
             const email = emailInput.value.trim();
             if (!email) {
                 loginError.textContent = "Digite seu e-mail para recuperar a senha!";
+                return;
+            }
+            if (!isValidEmail(email)) {
+                loginError.textContent = "Digite um e-mail válido (ex.: usuario@dominio.com)!";
                 return;
             }
             sendPasswordResetEmail(auth, email)
@@ -1305,29 +1327,35 @@
             const reportList = document.getElementById('reportList');
             reportList.innerHTML = '';
 
-            onValue(authUsersRef, (snapshot) => {
+            onValue(authUsersRef, async (snapshot) => {
                 const authUsers = snapshot.val() || {};
-                const userArray = Object.entries(authUsers).map(([uid, user]) => ({
-                    uid,
-                    name: user.name || user.email,
-                    email: user.email,
-                    registeredById: user.registeredById || uid // Se não houver registeredById, assume o próprio UID (para usuários iniciais)
-                }));
-
-                if (userArray.length === 0) {
+                log(`Dados brutos de authUsers: ${JSON.stringify(authUsers)}`);
+                
+                if (!authUsers) {
                     reportList.innerHTML = '<li>Nenhum usuário autenticado encontrado!</li>';
                     return;
                 }
 
-                const promises = userArray.map(user => {
-                    return getAuthUserNameByUid(user.registeredById).then(registeredBy => ({
-                        ...user,
-                        registeredBy: registeredBy // Nome ou e-mail do usuário que cadastrou
-                    }));
-                });
+                const userArray = Object.entries(authUsers).map(([uid, user]) => ({
+                    uid,
+                    name: user.name || user.email,
+                    email: user.email,
+                    registeredById: user.registeredById || uid // Se não houver registeredById, assume o próprio UID
+                }));
 
-                Promise.all(promises).then(usersWithRegisteredBy => {
+                log(`Array de usuários antes de resolver registeredById: ${JSON.stringify(userArray)}`);
+
+                try {
+                    const usersWithRegisteredBy = await Promise.all(
+                        userArray.map(async (user) => {
+                            const registeredBy = await getAuthUserNameByUid(user.registeredById);
+                            log(`Usuário ${user.name} (UID: ${user.uid}) cadastrado por: ${registeredBy} (UID: ${user.registeredById})`);
+                            return { ...user, registeredBy };
+                        })
+                    );
+
                     usersWithRegisteredBy.sort((a, b) => a.name.localeCompare(b.name));
+
                     usersWithRegisteredBy.forEach(({ name, email, registeredBy }) => {
                         const li = document.createElement('li');
                         li.innerHTML = `
@@ -1337,12 +1365,16 @@
                         `;
                         reportList.appendChild(li);
                     });
-                }).catch((error) => {
-                    log(`Erro ao buscar nomes de registrados: ${error.message}`);
+
+                    if (!reportList.children.length) {
+                        reportList.innerHTML = '<li>Nenhum usuário autenticado encontrado!</li>';
+                    }
+                } catch (error) {
+                    log(`Erro ao renderizar relatório de usuários: ${error.message}`);
                     document.getElementById('reportError').textContent = "Erro ao carregar relatório: " + error.message;
-                });
+                }
             }, { onlyOnce: true });
-            log("Lista de usuários autenticados renderizada a partir de /authUsers.");
+            log("Relatório de registro de usuários renderizado.");
         }
 
         document.addEventListener('DOMContentLoaded', () => {
