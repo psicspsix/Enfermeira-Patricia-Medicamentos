@@ -411,26 +411,35 @@
                 return;
             }
 
-            const newAuth = getAuth(app);
-            createUserWithEmailAndPassword(newAuth, email, password)
+            // Criar uma instância de autenticação secundária para evitar afetar o auth principal
+            const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+            const secondaryAuth = getAuth(secondaryApp);
+
+            createUserWithEmailAndPassword(secondaryAuth, email, password)
                 .then((userCredential) => {
                     const user = userCredential.user;
                     log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
+
+                    // Salvar os dados no banco usando o UID do novo usuário e o currentAuthUser original
                     return set(ref(db, `authUsers/${user.uid}`), {
                         name: name,
                         email: email,
-                        registeredById: currentAuthUser.uid // UID do usuário criador
+                        registeredById: currentAuthUser.uid // UID do usuário original que está logado
                     }).then(() => {
                         registerError.textContent = '';
                         registerSuccess.textContent = `Usuário ${name} cadastrado com sucesso! Use as credenciais (${email}) para fazer login.`;
-                        signOut(newAuth).then(() => {
-                            log(`Sessão do novo usuário ${email} encerrada para evitar login automático.`);
+                        
+                        // Deslogar o novo usuário da instância secundária
+                        signOut(secondaryAuth).then(() => {
+                            log(`Sessão do novo usuário ${email} encerrada na instância secundária.`);
                             setTimeout(() => {
                                 registerSuccess.textContent = '';
                                 registerScreen.style.display = 'none';
-                                loginScreen.style.display = 'block';
+                                appScreen.style.display = 'block'; // Volta para a tela principal
                                 isRegisterClicked = false;
                             }, 3000);
+                        }).catch((error) => {
+                            log(`Erro ao deslogar da instância secundária: ${error.message}`);
                         });
                     }).catch((error) => {
                         registerError.textContent = "Erro ao salvar dados do usuário: " + error.message;
@@ -444,6 +453,14 @@
                         registerError.textContent = `Erro ao cadastrar: ${error.message}`;
                     }
                     log(`Erro ao cadastrar usuário: ${error.message}`);
+                })
+                .finally(() => {
+                    // Destruir a instância secundária para evitar conflitos futuros
+                    secondaryApp.delete().then(() => {
+                        log("Instância secundária de autenticação destruída.");
+                    }).catch((error) => {
+                        log(`Erro ao destruir instância secundária: ${error.message}`);
+                    });
                 });
         });
 
