@@ -240,7 +240,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getDatabase, ref, onValue, push, update, remove, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDan0hha-AIKJ2onO-u79Yf480uyR9DroQ",
@@ -315,6 +315,9 @@
                 currentAuthUser = user;
                 currentAuthUserName = await getAuthUserNameByUid(user.uid);
                 log(`currentAuthUser definido como: ${currentAuthUser.email}`);
+                loginScreen.style.display = 'none';
+                appScreen.style.display = 'block';
+                renderMainScreen();
             } else {
                 log("Nenhum usuário autenticado detectado.");
                 currentAuthUser = null;
@@ -383,7 +386,7 @@
             }
         });
 
-        // Salvar novo usuário autenticado
+        // Salvar novo usuário autenticado sem alterar o usuário logado
         saveRegisterButton.addEventListener('click', () => {
             const name = registerNameInput.value.trim();
             const email = registerEmailInput.value.trim();
@@ -407,7 +410,9 @@
                 return;
             }
 
-            createUserWithEmailAndPassword(auth, email, password)
+            // Criar novo usuário sem alterar o estado de autenticação atual
+            const newAuth = getAuth(app); // Criar uma instância separada para evitar login automático
+            createUserWithEmailAndPassword(newAuth, email, password)
                 .then((userCredential) => {
                     const user = userCredential.user;
                     log(`Novo usuário autenticado ${name} criado com e-mail: ${email}`);
@@ -418,19 +423,17 @@
                     }).then(() => {
                         registerError.textContent = '';
                         registerSuccess.textContent = `Usuário ${name} cadastrado com sucesso! Use as credenciais (${email}) para fazer login.`;
-                        setTimeout(() => {
-                            registerSuccess.textContent = '';
-                            registerScreen.style.display = 'none';
-                            appScreen.style.display = 'block';
-                        }, 3000);
+                        signOut(newAuth).then(() => {
+                            log(`Sessão do novo usuário ${email} encerrada para evitar login automático.`);
+                            setTimeout(() => {
+                                registerSuccess.textContent = '';
+                                registerScreen.style.display = 'none';
+                                loginScreen.style.display = 'block';
+                            }, 3000);
+                        });
                     }).catch((error) => {
                         registerError.textContent = "Erro ao salvar dados do usuário: " + error.message;
                         log(`Erro ao salvar no Realtime Database: ${error.message}`);
-                        deleteUser(user).then(() => {
-                            log(`Usuário ${email} removido do Authentication devido a falha no Realtime Database.`);
-                        }).catch((delError) => {
-                            log(`Erro ao remover usuário do Authentication: ${delError.message}`);
-                        });
                     });
                 })
                 .catch((error) => {
@@ -445,7 +448,8 @@
 
         backFromRegisterButton.addEventListener('click', () => {
             registerScreen.style.display = 'none';
-            appScreen.style.display = 'block';
+            loginScreen.style.display = 'block';
+            log("Voltando da tela de cadastro para a tela de login.");
         });
 
         // Recuperação de senha
