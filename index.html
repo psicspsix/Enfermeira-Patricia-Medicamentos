@@ -263,6 +263,7 @@
         let currentReportType = 'daily';
         let currentAuthUser = null;
         let currentAuthUserName = null;
+        let isRegisterClicked = false; // Nova variável para rastrear clique em "Cadastrar"
 
         function getMedsRef() {
             return currentUserId ? ref(db, `users/${currentUserId}/medications`) : ref(db, 'medications');
@@ -315,9 +316,7 @@
                 currentAuthUser = user;
                 currentAuthUserName = await getAuthUserNameByUid(user.uid);
                 log(`currentAuthUser definido como: ${currentAuthUser.email}`);
-                loginScreen.style.display = 'none';
-                appScreen.style.display = 'block';
-                renderMainScreen();
+                // Não exibir appScreen imediatamente aqui, deixar o loginButton controlar
             } else {
                 log("Nenhum usuário autenticado detectado.");
                 currentAuthUser = null;
@@ -354,12 +353,15 @@
                     log(`Login bem-sucedido: ${userCredential.user.email}`);
                     loginError.textContent = '';
                     loginSuccess.textContent = "Login realizado com sucesso!";
+                    // Adicionar atraso de 3 segundos antes de entrar no appScreen
                     setTimeout(() => {
-                        loginSuccess.textContent = '';
-                        loginScreen.style.display = 'none';
-                        appScreen.style.display = 'block';
-                        renderMainScreen();
-                    }, 2000);
+                        if (!isRegisterClicked) { // Só entra no appScreen se "Cadastrar" não foi clicado
+                            loginSuccess.textContent = '';
+                            loginScreen.style.display = 'none';
+                            appScreen.style.display = 'block';
+                            renderMainScreen();
+                        }
+                    }, 3000); // 3 segundos de espera
                 })
                 .catch((error) => {
                     loginError.textContent = `Erro ao fazer login: ${error.message}`;
@@ -371,6 +373,7 @@
         registerButton.addEventListener('click', () => {
             log(`Botão 'Cadastrar' clicado. currentAuthUser: ${currentAuthUser ? currentAuthUser.email : 'null'}`);
             if (currentAuthUser) {
+                isRegisterClicked = true; // Marcar que "Cadastrar" foi clicado
                 loginScreen.style.display = 'none';
                 appScreen.style.display = 'none';
                 registerScreen.style.display = 'block';
@@ -410,7 +413,6 @@
                 return;
             }
 
-            // Criar novo usuário sem alterar o estado de autenticação atual
             const newAuth = getAuth(app); // Criar uma instância separada para evitar login automático
             createUserWithEmailAndPassword(newAuth, email, password)
                 .then((userCredential) => {
@@ -419,7 +421,7 @@
                     return set(ref(db, `authUsers/${user.uid}`), {
                         name: name,
                         email: email,
-                        registeredById: currentAuthUser.uid // Usuário autenticado atual
+                        registeredById: currentAuthUser.uid
                     }).then(() => {
                         registerError.textContent = '';
                         registerSuccess.textContent = `Usuário ${name} cadastrado com sucesso! Use as credenciais (${email}) para fazer login.`;
@@ -429,6 +431,7 @@
                                 registerSuccess.textContent = '';
                                 registerScreen.style.display = 'none';
                                 loginScreen.style.display = 'block';
+                                isRegisterClicked = false; // Resetar a flag após voltar à tela de login
                             }, 3000);
                         });
                     }).catch((error) => {
@@ -449,6 +452,7 @@
         backFromRegisterButton.addEventListener('click', () => {
             registerScreen.style.display = 'none';
             loginScreen.style.display = 'block';
+            isRegisterClicked = false; // Resetar a flag ao voltar manualmente
             log("Voltando da tela de cadastro para a tela de login.");
         });
 
